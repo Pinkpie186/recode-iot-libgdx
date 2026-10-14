@@ -10,7 +10,7 @@ public final class DesktopLauncher {
     public static void main(String[] args) {
         String port = System.getProperty("recode.port", "").trim();
         boolean simulated = Boolean.parseBoolean(System.getProperty("recode.simulate", "false"));
-        String phase = System.getProperty("recode.phase", "1").trim();
+        String phase = System.getProperty("recode.phase", "campaign").trim();
         String preview = System.getProperty("recode.preview", "").trim().toLowerCase();
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
         config.setWindowedMode(960, 540);
@@ -24,7 +24,10 @@ public final class DesktopLauncher {
             game = new ScenarioPreviewGame("scenarios/sistema_central.png", "Sistema Central");
         } else if (preview.isEmpty()) {
             PedalSource source = simulated ? new SimulatedPedalSource() : new SerialPedalSource(port);
-            if ("1".equals(phase)) {
+            if ("campaign".equals(phase)) {
+                config.setTitle(simulated ? "ReCode - Campanha (simulacao)" : "ReCode - Campanha");
+                game = new CampaignGame(source, simulated);
+            } else if ("1".equals(phase)) {
                 config.setTitle(simulated ? "ReCode - Circuitos Basicos (simulacao)" : "ReCode - Circuitos Basicos");
                 game = new ReCodePedalGame(source, simulated);
             } else if ("2".equals(phase)) {
@@ -34,7 +37,7 @@ public final class DesktopLauncher {
                 config.setTitle(simulated ? "ReCode - Sistema Central (simulacao)" : "ReCode - Sistema Central");
                 game = new PhaseThreeGame(source, simulated);
             } else {
-                throw new IllegalArgumentException("Use -Pphase=1, -Pphase=2 ou -Pphase=3");
+                throw new IllegalArgumentException("Use -Pphase=campaign, 1, 2 ou 3");
             }
         } else {
             throw new IllegalArgumentException("Use -Ppreview=rede ou -Ppreview=central");
