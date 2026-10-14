@@ -8,7 +8,7 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 
-/** Visualizador de arte; as fases 2 e 3 ainda nao possuem jogabilidade. */
+/** Visualizador isolado da arte, independente das fases jogaveis. */
 final class ScenarioPreviewGame extends ApplicationAdapter {
     private final String path;
     private final String title;
@@ -51,8 +51,9 @@ final class ScenarioPreviewGame extends ApplicationAdapter {
         font.getData().setScale(1.7f);
         font.draw(batch, "ReCode  |  " + title, 55, height - 40);
         font.getData().setScale(1.1f);
-        font.draw(batch, "PREVIA VISUAL - fase ainda nao jogavel", 55, height - 74);
-        font.draw(batch, "Cenario preparado para a proxima etapa do projeto.", 55, 43);
+        String phase = "Rede Instavel".equals(title) ? "2" : "3";
+        font.draw(batch, "PREVIA VISUAL - use -Pphase=" + phase + " para jogar", 55, height - 74);
+        font.draw(batch, "Abra a fase jogavel com -Pphase=" + phase + ".", 55, 43);
         batch.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);
     }
