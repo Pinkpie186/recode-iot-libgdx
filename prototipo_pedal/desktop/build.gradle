@@ -1,0 +1,31 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.badlogicgames.gdx:gdx:1.14.2'
+    implementation 'com.badlogicgames.gdx:gdx-backend-lwjgl3:1.14.2'
+    runtimeOnly 'com.badlogicgames.gdx:gdx-platform:1.14.2:natives-desktop'
+    implementation 'com.fazecast:jSerialComm:2.11.4'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+application {
+    mainClass = 'br.edu.recode.DesktopLauncher'
+}
+
+tasks.named('run', JavaExec) {
+    systemProperty 'recode.port', project.findProperty('port') ?: ''
+    systemProperty 'recode.simulate', project.findProperty('simulate') ?: 'false'
+    systemProperty 'recode.preview', project.findProperty('preview') ?: ''
+}
