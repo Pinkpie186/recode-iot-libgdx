@@ -9,6 +9,7 @@ final class PhaseThreeProgress {
     private int shields;
     private int shieldTurns;
     private int stablePairs;
+    private int stablePairsTotal;
     private int totalTurns;
     private boolean paused;
     private float movingSeconds;
@@ -38,7 +39,10 @@ final class PhaseThreeProgress {
         for (int i = 0; i < turns && !isComplete(); i++) {
             shieldTurns++;
             totalTurns++;
-            if (steady && i == 0) stablePairs++;
+            if (steady && i == 0) {
+                stablePairs++;
+                stablePairsTotal++;
+            }
             if (shieldTurns >= TURNS_PER_SHIELD && stablePairs >= STABLE_PAIRS_PER_SHIELD) {
                 shields++;
                 restored++;
@@ -64,7 +68,7 @@ final class PhaseThreeProgress {
     }
 
     void restart() {
-        shields = shieldTurns = stablePairs = totalTurns = 0;
+        shields = shieldTurns = stablePairs = stablePairsTotal = totalTurns = 0;
         paused = false;
         movingSeconds = 0f;
         lastTurnMillis = lastIntervalMillis = -1;
@@ -73,6 +77,7 @@ final class PhaseThreeProgress {
     int shields() { return shields; }
     int shieldTurns() { return shieldTurns; }
     int stablePairs() { return stablePairs; }
+    int stablePairsTotal() { return stablePairsTotal; }
     int totalTurns() { return totalTurns; }
     boolean isPaused() { return paused; }
     boolean isComplete() { return shields == SHIELD_COUNT; }

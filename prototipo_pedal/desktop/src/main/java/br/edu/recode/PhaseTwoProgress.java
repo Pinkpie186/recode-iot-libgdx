@@ -9,6 +9,7 @@ final class PhaseTwoProgress {
     private int nodes;
     private int nodeTurns;
     private int stablePairs;
+    private int stablePairsTotal;
     private int totalTurns;
     private boolean paused;
     private float movingSeconds;
@@ -38,7 +39,10 @@ final class PhaseTwoProgress {
         for (int i = 0; i < turns && !isComplete(); i++) {
             nodeTurns++;
             totalTurns++;
-            if (steady && i == 0) stablePairs++;
+            if (steady && i == 0) {
+                stablePairs++;
+                stablePairsTotal++;
+            }
             if (nodeTurns >= TURNS_PER_NODE && stablePairs >= STABLE_PAIRS_PER_NODE) {
                 nodes++;
                 repaired++;
@@ -64,7 +68,7 @@ final class PhaseTwoProgress {
     }
 
     void restart() {
-        nodes = nodeTurns = stablePairs = totalTurns = 0;
+        nodes = nodeTurns = stablePairs = stablePairsTotal = totalTurns = 0;
         paused = false;
         movingSeconds = 0f;
         lastTurnMillis = lastIntervalMillis = -1;
@@ -73,6 +77,7 @@ final class PhaseTwoProgress {
     int nodes() { return nodes; }
     int nodeTurns() { return nodeTurns; }
     int stablePairs() { return stablePairs; }
+    int stablePairsTotal() { return stablePairsTotal; }
     int totalTurns() { return totalTurns; }
     boolean isPaused() { return paused; }
     boolean isComplete() { return nodes == NODE_COUNT; }
