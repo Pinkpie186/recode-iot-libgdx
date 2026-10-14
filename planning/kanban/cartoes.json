@@ -1,0 +1,140 @@
+[
+  {
+    "area": "Planejamento",
+    "titulo": "Definir os requisitos e escopo do ReCode",
+    "prioridade": "Alta",
+    "checklist": ["Revisar o documento do professor", "Identificar requisitos obrigatórios", "Definir funcionalidades mínimas", "Registrar decisões do grupo"]
+  },
+  {
+    "area": "Planejamento",
+    "titulo": "Definir proposta de reabilitação",
+    "prioridade": "Alta",
+    "checklist": ["Identificar a finalidade física do exercício", "Pesquisar fundamentação para a proposta", "Definir indicadores de evolução", "Validar a proposta com o professor"]
+  },
+  {
+    "area": "Planejamento",
+    "titulo": "Definir hardware IoT",
+    "prioridade": "Alta",
+    "checklist": ["Comparar mini pedal e bicicleta ergométrica", "Confirmar aceitação do dispositivo pelo professor", "Escolher sensor magnético e microcontrolador", "Fechar orçamento e lista de compras"]
+  },
+  {
+    "area": "Planejamento",
+    "titulo": "Criar repositório GitHub e organização",
+    "prioridade": "Alta",
+    "checklist": ["Criar repositório", "Adicionar integrantes", "Definir convenção de branches e commits", "Criar README inicial"]
+  },
+  {
+    "area": "IoT e integração",
+    "titulo": "Montar circuito ESP32 e sensor",
+    "prioridade": "Alta",
+    "checklist": ["Preparar materiais", "Fixar sensor e ímã com segurança", "Conectar o sensor ao ESP32", "Validar a detecção de uma volta"]
+  },
+  {
+    "area": "IoT e integração",
+    "titulo": "Programar leitura das pedaladas",
+    "prioridade": "Alta",
+    "checklist": ["Contar pulsos válidos", "Tratar pulsos duplicados", "Calcular RPM", "Detectar ausência de movimento"]
+  },
+  {
+    "area": "IoT e integração",
+    "titulo": "Integrar ESP32 ao Java/libGDX",
+    "prioridade": "Alta",
+    "checklist": ["Definir formato dos dados", "Implementar comunicação serial USB", "Interpretar dados no jogo", "Tratar desconexão do sensor"]
+  },
+  {
+    "area": "IoT e integração",
+    "titulo": "Testar precisão do dispositivo",
+    "prioridade": "Alta",
+    "checklist": ["Comparar voltas reais e pulsos registrados", "Testar diferentes ritmos", "Registrar erros e correções", "Validar funcionamento contínuo"]
+  },
+  {
+    "area": "Desenvolvimento libGDX",
+    "titulo": "Configurar projeto libGDX",
+    "prioridade": "Alta",
+    "checklist": ["Criar projeto Java/libGDX", "Configurar módulo desktop", "Organizar pacotes e assets", "Executar primeira tela"]
+  },
+  {
+    "area": "Desenvolvimento libGDX",
+    "titulo": "Criar personagem Byte",
+    "prioridade": "Média",
+    "checklist": ["Definir aparência", "Criar sprites", "Implementar animações", "Associar ações ao dispositivo IoT"]
+  },
+  {
+    "area": "Desenvolvimento libGDX",
+    "titulo": "Desenvolver menu e comandos IoT",
+    "prioridade": "Alta",
+    "checklist": ["Criar tela inicial", "Implementar iniciar", "Implementar pausar e retomar", "Implementar reiniciar", "Testar navegação exclusivamente com IoT"]
+  },
+  {
+    "area": "Desenvolvimento libGDX",
+    "titulo": "Implementar Fase 1 — Circuitos Básicos",
+    "prioridade": "Alta",
+    "checklist": ["Criar cenário", "Implementar restauração por pedaladas", "Adicionar meta de cadência", "Implementar conclusão da fase"]
+  },
+  {
+    "area": "Desenvolvimento libGDX",
+    "titulo": "Implementar Fase 2 — Rede Instável",
+    "prioridade": "Alta",
+    "checklist": ["Criar cenário", "Implementar desafios de consistência", "Adicionar efeitos de corrupção digital", "Testar dificuldade progressiva"]
+  },
+  {
+    "area": "Desenvolvimento libGDX",
+    "titulo": "Implementar Fase 3 — Sistema Central",
+    "prioridade": "Alta",
+    "checklist": ["Criar cenário do núcleo", "Combinar mecânicas anteriores", "Implementar objetivo final", "Implementar conclusão do jogo"]
+  },
+  {
+    "area": "Métricas de reabilitação",
+    "titulo": "Implementar cálculo de desempenho",
+    "prioridade": "Alta",
+    "checklist": ["Calcular cadência média", "Calcular consistência", "Registrar tempo de atividade", "Criar fórmula de pontuação"]
+  },
+  {
+    "area": "Métricas de reabilitação",
+    "titulo": "Implementar acompanhamento de evolução",
+    "prioridade": "Alta",
+    "checklist": ["Registrar resultado de cada fase", "Comparar sessões", "Exibir progresso do jogador", "Verificar coerência com proposta de reabilitação"]
+  },
+  {
+    "area": "Métricas de reabilitação",
+    "titulo": "Criar tela de resultados",
+    "prioridade": "Média",
+    "checklist": ["Exibir pontuação", "Mostrar métricas", "Exibir progresso da sessão", "Criar opção de reiniciar via IoT"]
+  },
+  {
+    "area": "Qualidade e entregas",
+    "titulo": "Executar testes funcionais",
+    "prioridade": "Alta",
+    "checklist": ["Validar três fases", "Validar menu e personagem", "Validar controle exclusivamente IoT", "Validar pontuação e salvamento", "Corrigir falhas identificadas"]
+  },
+  {
+    "area": "Qualidade e entregas",
+    "titulo": "Preparar short paper — até 6 páginas",
+    "prioridade": "Alta",
+    "checklist": ["Descrever problema e contexto de reabilitação", "Escrever justificativa da gamificação", "Documentar mecânicas e integração IoT", "Inserir prints reais do desenvolvimento", "Revisar limite de páginas"]
+  },
+  {
+    "area": "Qualidade e entregas",
+    "titulo": "Gerar executável ou APK",
+    "prioridade": "Alta",
+    "checklist": ["Escolher plataforma de entrega", "Gerar versão executável", "Testar em ambiente limpo", "Organizar arquivos da entrega"]
+  },
+  {
+    "area": "Qualidade e entregas",
+    "titulo": "Preparar apresentação final",
+    "prioridade": "Média",
+    "checklist": ["Organizar demonstração do dispositivo", "Preparar demonstração do jogo", "Conferir Kanban e GitHub", "Ensaiar apresentação das três fases"]
+  },
+  {
+    "area": "Gestão semanal",
+    "titulo": "Reunião semanal e atualização Kanban",
+    "prioridade": "Alta",
+    "checklist": ["Revisar tarefas concluídas", "Apresentar atividades da semana", "Identificar dificuldades", "Definir próximas atividades"]
+  },
+  {
+    "area": "Gestão semanal",
+    "titulo": "Conferir commits semanais individuais",
+    "prioridade": "Alta",
+    "checklist": ["Verificar commits de cada integrante", "Relacionar commits às tarefas", "Atualizar evidências nos cartões", "Conferir contribuição individual"]
+  }
+]
