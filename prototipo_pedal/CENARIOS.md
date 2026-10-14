@@ -7,12 +7,11 @@ O jogo desenha ELO, o mascote, a trilha e os indicadores por cima do fundo.
 | Fase | Arquivo | Uso atual |
 | --- | --- | --- |
 | Circuitos Básicos | `desktop/src/main/resources/scenarios/circuitos_basicos.png` | Fundo da primeira fase jogável |
-| Rede Instável | `desktop/src/main/resources/scenarios/rede_instavel.png` | Prévia visual |
-| Sistema Central | `desktop/src/main/resources/scenarios/sistema_central.png` | Prévia visual |
+| Rede Instável | `desktop/src/main/resources/scenarios/rede_instavel.png` | Fundo da segunda fase jogável |
+| Sistema Central | `desktop/src/main/resources/scenarios/sistema_central.png` | Fundo da terceira fase jogável |
 
 As imagens têm 1672 × 941 pixels. O jogo as ajusta à janela preservando a
-proporção. Os cenários 2 e 3 não implicam que a jogabilidade dessas fases está
-pronta. Os objetivos e parâmetros de exercício continuam sujeitos à validação
+proporção. As três fases usam esses cenários. Os objetivos e parâmetros de exercício continuam sujeitos à validação
 indicada no GDD.
 
 ## Prompts usados

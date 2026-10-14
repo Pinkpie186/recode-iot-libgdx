@@ -1,12 +1,13 @@
-# ReCode: primeiro protótipo com mini pedal
+# ReCode: três fases jogáveis
 
-Este protótipo liga **uma volta da manivela do mini pedal** a um passo de ELO em
+Esta versão liga **uma volta da manivela do mini pedal** a um passo de ELO em
 **Circuitos Básicos**. No modo real, o ESP32 envia a contagem por USB serial;
 o jogo libGDX avança somente com voltas válidas. ELO percorre uma trilha de
 energia e restaura três circuitos ao atingir 5, 10 e 15 voltas. Em 20 voltas,
-aparece a conclusão da demonstração. Esses números são parâmetros técnicos
+aparece a tela de conclusão com circuitos, voltas e tempo de movimento detectado. Esses números são parâmetros técnicos
 provisórios, não metas de exercício. Os bloqueios ainda têm desenho provisório.
-Há também uma simulação identificada para desenvolver a tela.
+Há também uma simulação identificada para desenvolver a tela. A fase pode ser pausada
+e reiniciada com o teclado, apenas enquanto a navegação por IoT não for definida.
 Ainda não é o jogo completo nem uma ferramenta de avaliação clínica.
 
 ## Materiais
@@ -53,12 +54,13 @@ As folhas originais de ELO, do mascote e de Nó Zero ficam em
 `desktop/src/main/resources/sprites/`. Cada folha tem 16 quadros em uma grade
 4 × 4; o recorte ocorre no libGDX, sem alterar os PNGs. Nesta primeira fase,
 ELO usa repouso, movimento e restauração; o mascote flutua, acompanha e orienta.
-A folha de Nó Zero está pronta para uma fase posterior e não aparece aqui.
+Nó Zero aparece na segunda e na terceira fase, com animações de presença,
+interferência e enfraquecimento.
 Os três cenários em `desktop/src/main/resources/scenarios/` representam as fases
 definidas no GDD: a câmara de circuitos em azul/ciano, a rede fragmentada em
 azul e magenta e o núcleo central em violeta. O cenário de Circuitos Básicos
-aparece na fase jogável. Os outros dois são prévias visuais; suas mecânicas e
-condições de conclusão ainda não foram implementadas.
+aparece na primeira fase jogável; Rede Instável usa o segundo cenário na fase 2.
+Sistema Central usa o terceiro cenário na fase 3.
 É preciso instalar um JDK 17 e Gradle, pois este pacote não inclui um wrapper
 nem binários. No terminal, dentro de `desktop/`:
 
@@ -88,7 +90,69 @@ conclusão aparece na volta 20. A simulação não demonstra controle via IoT e 
 sozinho ao requisito de avaliação do projeto. Para testar o dispositivo real,
 feche a simulação e use `-Pport=COM3` com a porta correta.
 
-### Visualizar os próximos cenários
+**Controles temporários de desenvolvimento:** `P` ou `Espaço` pausa/retoma; `R`
+reinicia a fase. Voltas recebidas durante a pausa são descartadas. A leitura de RPM
+serve somente para informar movimento detectado; não define intensidade segura ou
+meta de reabilitação. A tela de conclusão não pontua dados recebidos depois da meta.
+
+### Fase 2 — Rede Instável
+
+Para jogar sem as peças IoT:
+
+```text
+gradle run -Pphase=2 -Psimulate=true
+```
+
+Com o mini pedal ligado, substitua a simulação pela porta serial correta:
+
+```text
+gradle run -Pphase=2 -Pport=COM3
+```
+
+ELO atravessa a rede e estabiliza **três nós**. Cada nó recebe pelo menos oito
+voltas válidas e dois pares de intervalos regulares. A comparação é com o ritmo
+imediatamente anterior do próprio jogador, com tolerância provisória de 35%; não
+existe meta de velocidade. Voltas fora desse intervalo continuam registradas, e
+o progresso anterior não é apagado. Se faltarem pares regulares depois da oitava
+volta, o nó permanece aberto para recuperação sem limite de tempo. Esses valores
+são parâmetros lúdicos a validar, não critérios clínicos.
+
+**Nó Zero** aparece no cenário e provoca uma interferência visual enquanto o
+sinal do nó atual não está estável. Não há flashes ou punição por ritmo baixo.
+Quando os três nós são estabilizados, a tela de conclusão mostra o resultado e
+Nó Zero recua para o Sistema Central. `P` ou `Espaço` pausa e `R` reinicia, como
+na fase 1. A navegação exclusivamente por IoT ainda depende da decisão sobre
+controles físicos e testes com o dispositivo.
+
+### Fase 3 — Sistema Central
+
+Para jogar sem as peças IoT:
+
+```text
+gradle run -Pphase=3 -Psimulate=true
+```
+
+Com o mini pedal conectado:
+
+```text
+gradle run -Pphase=3 -Pport=COM3
+```
+
+No confronto final, ELO restaura **seis condutos** e estabiliza **três escudos**
+de Nó Zero. Cada escudo precisa de pelo menos oito voltas válidas e dois pares
+de intervalos regulares. No meio de cada trecho, Nó Zero desvia a energia para
+outra rota; a rota ativa é destacada na tela e ELO a acompanha automaticamente.
+O jogador não precisa aumentar a velocidade. As voltas continuam registradas
+durante a interferência; um escudo com regularidade insuficiente fica aberto
+para recuperação sem perder o progresso. Os números e a tolerância de 35% são
+parâmetros lúdicos provisórios, não critérios clínicos.
+
+Após os três escudos, a conclusão mostra a restauração do Sistema Central.
+`P` ou `Espaço` pausa e `R` reinicia em desenvolvimento. As fases são abertas
+separadamente pelo parâmetro `phase`; a navegação integral por IoT e a passagem
+automática entre fases ainda dependem de decisão e teste com o dispositivo.
+
+### Visualizar os cenários sem jogar
 
 Sem precisar do pedal, execute um comando de cada vez na pasta `desktop/`:
 
@@ -98,7 +162,8 @@ gradle run -Ppreview=central
 ```
 
 Cada comando abre apenas a arte da fase indicada, com o aviso de prévia visual.
-Feche a janela para encerrar. Essas prévias não representam jogabilidade pronta.
+As prévias servem apenas para visualizar a arte. Para jogar, use `-Pphase=2`
+ou `-Pphase=3`.
 
 ## Verificação na bancada
 
@@ -118,5 +183,6 @@ pendentes de validação profissional.
 ## Escopo após este protótipo
 
 Adicionar calibração de cadência individual, menu/pausa/reinício controlados por
-IoT, as demais fases, métricas persistidas e tratamento de reconexão. O desenho
-final de ELO pode substituir a forma provisória sem alterar a leitura do pedal.
+IoT, transição entre fases, métricas persistidas e tratamento de reconexão.
+Validar as três fases na tela e no dispositivo real antes de considerar a
+integração concluída.
