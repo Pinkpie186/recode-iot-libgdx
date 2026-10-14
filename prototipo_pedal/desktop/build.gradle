@@ -28,5 +28,15 @@ tasks.named('run', JavaExec) {
     systemProperty 'recode.port', project.findProperty('port') ?: ''
     systemProperty 'recode.simulate', project.findProperty('simulate') ?: 'false'
     systemProperty 'recode.preview', project.findProperty('preview') ?: ''
-    systemProperty 'recode.phase', project.findProperty('phase') ?: '1'
+    systemProperty 'recode.phase', project.findProperty('phase') ?: 'campaign'
+}
+
+tasks.register('verifyCampaign', JavaExec) {
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'br.edu.recode.CampaignProgressCheck'
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('verifyCampaign')
 }
