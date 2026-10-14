@@ -1,0 +1,15 @@
+# Gradle
+.gradle/
+**/build/
+
+# IDE e sistema operacional
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Arquivos locais de configuração e segredos
+.env
+.env.*
+*.local
