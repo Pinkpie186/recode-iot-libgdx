@@ -21,8 +21,9 @@ final class ReCodePedalGame extends ApplicationAdapter {
 
     private final PedalSource source;
     private final boolean simulated;
-    private final PedalCounter counter = new PedalCounter();
-    private final PhaseOneProgress progress = new PhaseOneProgress();
+    private final PedalCounter counter;
+    private final PhaseOneProgress progress;
+    private final boolean manageSource;
     private SpriteBatch batch;
     private BitmapFont font;
     private ShapeRenderer shapes;
@@ -32,10 +33,21 @@ final class ReCodePedalGame extends ApplicationAdapter {
     private float energyPulse;
     private float repairPulse;
     private float animationTime;
+    private boolean campaignLocked;
+
+    void setCampaignLocked(boolean locked) { campaignLocked = locked; }
 
     ReCodePedalGame(PedalSource source, boolean simulated) {
+        this(source, simulated, new PedalCounter(), new PhaseOneProgress(), true);
+    }
+
+    ReCodePedalGame(PedalSource source, boolean simulated, PedalCounter counter,
+                    PhaseOneProgress progress, boolean manageSource) {
         this.source = source;
         this.simulated = simulated;
+        this.counter = counter;
+        this.progress = progress;
+        this.manageSource = manageSource;
     }
 
     @Override public void create() {
@@ -45,22 +57,22 @@ final class ReCodePedalGame extends ApplicationAdapter {
         background = new ScenarioBackground("scenarios/circuitos_basicos.png");
         eloSprites = new CharacterSpriteSheet("sprites/elo.png");
         mascotSprites = new CharacterSpriteSheet("sprites/mascote.png");
-        source.start();
+        if (manageSource) source.start();
     }
 
     @Override public void render() {
         long now = System.nanoTime();
         // Atalhos de desenvolvimento; o objetivo da fase continua ligado ao pedal.
-        if (Gdx.input.isKeyJustPressed(Input.Keys.P) ||
-                Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) progress.togglePause();
-        if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
+        if (!campaignLocked && (Gdx.input.isKeyJustPressed(Input.Keys.P) ||
+                Gdx.input.isKeyJustPressed(Input.Keys.SPACE))) progress.togglePause();
+        if (manageSource && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             progress.restart();
             energyPulse = repairPulse = 0f;
         }
         PedalFrame frame;
         while ((frame = source.poll()) != null) {
             int turns = counter.accept(frame, now);
-            if (turns > 0) {
+            if (turns > 0 && !campaignLocked) {
                 int previous = progress.rotations();
                 int accepted = progress.addRotations(turns);
                 if (accepted == 0) continue;
@@ -73,7 +85,7 @@ final class ReCodePedalGame extends ApplicationAdapter {
         float deltaTime = Gdx.graphics.getDeltaTime();
         boolean connected = source.lastFrameNanos() >= 0 &&
                 now - source.lastFrameNanos() <= 2_000_000_000L;
-        progress.update(deltaTime, connected && counter.rpm(now) > 0);
+        if (!campaignLocked) progress.update(deltaTime, connected && counter.rpm(now) > 0);
         energyPulse = Math.max(0f, energyPulse - deltaTime * 2.5f);
         repairPulse = Math.max(0f, repairPulse - deltaTime * 1.25f);
         animationTime += deltaTime;
@@ -187,7 +199,8 @@ final class ReCodePedalGame extends ApplicationAdapter {
             String rhythm = rpm <= 0 ? "Aguardando movimento" : "Movimento detectado";
             font.draw(batch, rhythm + "  |  " + Math.round(rpm) + " RPM", right - 300, 70);
             font.draw(batch, "Proximo objetivo: " + progress.nextRepairAt() + " voltas", left, 42);
-            font.draw(batch, "P/Espaco: pausa   R: reiniciar (desenvolvimento)", right - 390, 42);
+            font.draw(batch, manageSource ? "P/Espaco: pausa   R: reiniciar (desenvolvimento)"
+                    : "P/Espaco: pausa", right - 390, 42);
         }
 
         if (progress.isPaused()) {
@@ -208,13 +221,14 @@ final class ReCodePedalGame extends ApplicationAdapter {
             font.setColor(MUTED_TEXT);
             font.draw(batch, "3 circuitos  |  " + progress.rotations() + " voltas  |  " +
                     Math.round(progress.activeSeconds()) + " s com movimento", width * 0.29f, height * 0.45f);
-            font.draw(batch, "R para jogar novamente", width * 0.38f, height * 0.36f);
+            font.draw(batch, manageSource ? "R para jogar novamente"
+                    : "Proxima fase em instantes", width * 0.38f, height * 0.36f);
         }
         batch.end();
     }
 
     @Override public void dispose() {
-        source.close();
+        if (manageSource) source.close();
         background.dispose();
         eloSprites.dispose();
         mascotSprites.dispose();

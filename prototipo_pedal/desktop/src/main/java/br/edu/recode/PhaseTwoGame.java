@@ -21,8 +21,9 @@ final class PhaseTwoGame extends ApplicationAdapter {
 
     private final PedalSource source;
     private final boolean simulated;
-    private final PedalCounter counter = new PedalCounter();
-    private final PhaseTwoProgress progress = new PhaseTwoProgress();
+    private final PedalCounter counter;
+    private final PhaseTwoProgress progress;
+    private final boolean manageSource;
     private SpriteBatch batch;
     private ShapeRenderer shapes;
     private BitmapFont font;
@@ -33,10 +34,21 @@ final class PhaseTwoGame extends ApplicationAdapter {
     private float animationTime;
     private float energyPulse;
     private float nodePulse;
+    private boolean campaignLocked;
+
+    void setCampaignLocked(boolean locked) { campaignLocked = locked; }
 
     PhaseTwoGame(PedalSource source, boolean simulated) {
+        this(source, simulated, new PedalCounter(), new PhaseTwoProgress(), true);
+    }
+
+    PhaseTwoGame(PedalSource source, boolean simulated, PedalCounter counter,
+                 PhaseTwoProgress progress, boolean manageSource) {
         this.source = source;
         this.simulated = simulated;
+        this.counter = counter;
+        this.progress = progress;
+        this.manageSource = manageSource;
     }
 
     @Override public void create() {
@@ -47,14 +59,14 @@ final class PhaseTwoGame extends ApplicationAdapter {
         elo = new CharacterSpriteSheet("sprites/elo.png");
         mascot = new CharacterSpriteSheet("sprites/mascote.png");
         noZero = new CharacterSpriteSheet("sprites/no_zero.png");
-        source.start();
+        if (manageSource) source.start();
     }
 
     @Override public void render() {
         long now = System.nanoTime();
-        if (Gdx.input.isKeyJustPressed(Input.Keys.P) ||
-                Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) progress.togglePause();
-        if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
+        if (!campaignLocked && (Gdx.input.isKeyJustPressed(Input.Keys.P) ||
+                Gdx.input.isKeyJustPressed(Input.Keys.SPACE))) progress.togglePause();
+        if (manageSource && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             progress.restart();
             energyPulse = nodePulse = 0f;
         }
@@ -62,7 +74,7 @@ final class PhaseTwoGame extends ApplicationAdapter {
         PedalFrame frame;
         while ((frame = source.poll()) != null) {
             int turns = counter.accept(frame, now);
-            if (turns > 0 && !progress.isPaused() && !progress.isComplete()) {
+            if (turns > 0 && !campaignLocked && !progress.isPaused() && !progress.isComplete()) {
                 int repaired = progress.acceptTurns(turns, frame.lastCycleMillis);
                 energyPulse = 1f;
                 if (repaired > 0) nodePulse = 1f;
@@ -71,7 +83,7 @@ final class PhaseTwoGame extends ApplicationAdapter {
         float delta = Gdx.graphics.getDeltaTime();
         boolean connected = source.lastFrameNanos() >= 0 &&
                 now - source.lastFrameNanos() <= 2_000_000_000L;
-        progress.update(delta, connected && counter.rpm(now) > 0);
+        if (!campaignLocked) progress.update(delta, connected && counter.rpm(now) > 0);
         animationTime += delta;
         energyPulse = Math.max(0f, energyPulse - delta * 2.4f);
         nodePulse = Math.max(0f, nodePulse - delta * 1.2f);
@@ -197,7 +209,8 @@ final class PhaseTwoGame extends ApplicationAdapter {
                     "No Zero interfere na rede" :
                     "Sinal em recuperacao", left, 24);
             font.setColor(MUTED);
-            font.draw(batch, "P/Espaco: pausa   R: reiniciar", right - 276, 24);
+            font.draw(batch, manageSource ? "P/Espaco: pausa   R: reiniciar"
+                    : "P/Espaco: pausa", right - 276, 24);
         }
 
         if (progress.isPaused()) {
@@ -219,13 +232,14 @@ final class PhaseTwoGame extends ApplicationAdapter {
             font.draw(batch, "3 nos  |  " + progress.totalTurns() + " voltas  |  " +
                     Math.round(progress.movingSeconds()) + " s com movimento",
                     width * 0.27f, height * 0.45f);
-            font.draw(batch, "R para jogar novamente", width * 0.38f, height * 0.36f);
+            font.draw(batch, manageSource ? "R para jogar novamente"
+                    : "Proxima fase em instantes", width * 0.38f, height * 0.36f);
         }
         batch.end();
     }
 
     @Override public void dispose() {
-        source.close();
+        if (manageSource) source.close();
         background.dispose();
         elo.dispose();
         mascot.dispose();

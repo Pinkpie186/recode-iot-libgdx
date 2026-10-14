@@ -21,8 +21,9 @@ final class PhaseThreeGame extends ApplicationAdapter {
 
     private final PedalSource source;
     private final boolean simulated;
-    private final PedalCounter counter = new PedalCounter();
-    private final PhaseThreeProgress progress = new PhaseThreeProgress();
+    private final PedalCounter counter;
+    private final PhaseThreeProgress progress;
+    private final boolean manageSource;
     private SpriteBatch batch;
     private ShapeRenderer shapes;
     private BitmapFont font;
@@ -34,10 +35,21 @@ final class PhaseThreeGame extends ApplicationAdapter {
     private float energyPulse;
     private float shieldPulse;
     private float routePulse;
+    private boolean campaignLocked;
+
+    void setCampaignLocked(boolean locked) { campaignLocked = locked; }
 
     PhaseThreeGame(PedalSource source, boolean simulated) {
+        this(source, simulated, new PedalCounter(), new PhaseThreeProgress(), true);
+    }
+
+    PhaseThreeGame(PedalSource source, boolean simulated, PedalCounter counter,
+                   PhaseThreeProgress progress, boolean manageSource) {
         this.source = source;
         this.simulated = simulated;
+        this.counter = counter;
+        this.progress = progress;
+        this.manageSource = manageSource;
     }
 
     @Override public void create() {
@@ -48,14 +60,14 @@ final class PhaseThreeGame extends ApplicationAdapter {
         elo = new CharacterSpriteSheet("sprites/elo.png");
         mascot = new CharacterSpriteSheet("sprites/mascote.png");
         noZero = new CharacterSpriteSheet("sprites/no_zero.png");
-        source.start();
+        if (manageSource) source.start();
     }
 
     @Override public void render() {
         long now = System.nanoTime();
-        if (Gdx.input.isKeyJustPressed(Input.Keys.P) ||
-                Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) progress.togglePause();
-        if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
+        if (!campaignLocked && (Gdx.input.isKeyJustPressed(Input.Keys.P) ||
+                Gdx.input.isKeyJustPressed(Input.Keys.SPACE))) progress.togglePause();
+        if (manageSource && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             progress.restart();
             energyPulse = shieldPulse = routePulse = 0f;
         }
@@ -63,7 +75,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
         PedalFrame frame;
         while ((frame = source.poll()) != null) {
             int turns = counter.accept(frame, now);
-            if (turns > 0 && !progress.isPaused() && !progress.isComplete()) {
+            if (turns > 0 && !campaignLocked && !progress.isPaused() && !progress.isComplete()) {
                 int routeBefore = progress.activeRoute();
                 int restored = progress.acceptTurns(turns, frame.lastCycleMillis);
                 energyPulse = 1f;
@@ -74,7 +86,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
         float delta = Gdx.graphics.getDeltaTime();
         boolean connected = source.lastFrameNanos() >= 0 &&
                 now - source.lastFrameNanos() <= 2_000_000_000L;
-        progress.update(delta, connected && counter.rpm(now) > 0);
+        if (!campaignLocked) progress.update(delta, connected && counter.rpm(now) > 0);
         animationTime += delta;
         energyPulse = Math.max(0f, energyPulse - delta * 2.4f);
         shieldPulse = Math.max(0f, shieldPulse - delta * 1.15f);
@@ -187,7 +199,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
         font.setColor(MUTED);
         font.draw(batch, simulated ? "SIMULACAO DE DESENVOLVIMENTO - sem dispositivo IoT" :
                 "Restaure os condutos e estabilize o nucleo", left, height - 71);
-        font.draw(batch, "P: pausa   R: reiniciar", width - 235, height - 71);
+        if (manageSource) font.draw(batch, "P: pausa   R: reiniciar", width - 235, height - 71);
         font.setColor(Color.WHITE);
         font.draw(batch, "Escudos: " + progress.shields() + " / 3", left, height - 130);
         font.draw(batch, "Condutos: " + progress.restoredConduits() + " / 6",
@@ -231,13 +243,14 @@ final class PhaseThreeGame extends ApplicationAdapter {
             font.draw(batch, "3 escudos  |  6 condutos  |  " + progress.totalTurns()
                     + " voltas", width * 0.33f, height * 0.46f);
             font.draw(batch, Math.round(progress.movingSeconds()) +
-                    " s com movimento  |  R para jogar novamente", width * 0.29f, height * 0.38f);
+                    (manageSource ? " s com movimento  |  R para jogar novamente"
+                            : " s com movimento  |  Campanha concluida"), width * 0.29f, height * 0.38f);
         }
         batch.end();
     }
 
     @Override public void dispose() {
-        source.close();
+        if (manageSource) source.close();
         background.dispose();
         elo.dispose();
         mascot.dispose();
