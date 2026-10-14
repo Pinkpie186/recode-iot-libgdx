@@ -1,14 +1,13 @@
-# ReCode: três fases jogáveis
+# ReCode: campanha com três fases
 
-Esta versão liga **uma volta da manivela do mini pedal** a um passo de ELO em
-**Circuitos Básicos**. No modo real, o ESP32 envia a contagem por USB serial;
-o jogo libGDX avança somente com voltas válidas. ELO percorre uma trilha de
-energia e restaura três circuitos ao atingir 5, 10 e 15 voltas. Em 20 voltas,
-aparece a tela de conclusão com circuitos, voltas e tempo de movimento detectado. Esses números são parâmetros técnicos
-provisórios, não metas de exercício. Os bloqueios ainda têm desenho provisório.
-Há também uma simulação identificada para desenvolver a tela. A fase pode ser pausada
-e reiniciada com o teclado, apenas enquanto a navegação por IoT não for definida.
-Ainda não é o jogo completo nem uma ferramenta de avaliação clínica.
+Esta versão executa **Circuitos Básicos**, **Rede Instável** e **Sistema Central**
+na mesma janela. O ESP32 envia a contagem do mini pedal por USB serial; cada
+volta válida avança ELO. Após a conclusão de uma fase, a próxima começa
+automaticamente. A leitura do pedal acompanha toda a campanha, e o resultado
+final mantém voltas, objetivos, pares regulares e tempo de movimento de cada
+fase. Os números são parâmetros lúdicos provisórios, não metas de exercício.
+Há também uma simulação identificada para desenvolvimento. O protótipo ainda
+depende de validação do dispositivo físico e dos objetivos de reabilitação.
 
 ## Materiais
 
@@ -82,22 +81,38 @@ gradle run -Psimulate=true
 ```
 
 O modo de simulação gera uma volta por segundo (60 RPM) e alimenta **o mesmo
-parser e contador** usados pelo ESP32. A tela mostra claramente “MODO SIMULADO”.
-Ele serve para conferir o avanço de ELO, a reparação dos três circuitos, a tela
-de conclusão e o tratamento dos dados enquanto as peças não chegam. Observe
-os bloqueios mudarem de vermelho para verde nas voltas 5, 10 e 15. A tela de
-conclusão aparece na volta 20. A simulação não demonstra controle via IoT e não atende
+parser e contador** usados pelo ESP32. A tela identifica a simulação. Ele
+permite conferir as três fases e as transições enquanto as peças não chegam.
+Na primeira fase, observe os bloqueios mudarem de vermelho para verde nas
+voltas 5, 10 e 15. Após a volta 20, a campanha passa para Rede Instável;
+depois segue para Sistema Central. A simulação não demonstra controle via IoT e não atende
 sozinho ao requisito de avaliação do projeto. Para testar o dispositivo real,
 feche a simulação e use `-Pport=COM3` com a porta correta.
 
-**Controles temporários de desenvolvimento:** `P` ou `Espaço` pausa/retoma; `R`
-reinicia a fase. Voltas recebidas durante a pausa são descartadas. A leitura de RPM
-serve somente para informar movimento detectado; não define intensidade segura ou
-meta de reabilitação. A tela de conclusão não pontua dados recebidos depois da meta.
+**Controles temporários de desenvolvimento:** `P` ou `Espaço` pausa/retoma;
+`R` inicia uma nova campanha após vitória ou derrota. Voltas recebidas durante
+a pausa ou a transição são descartadas. A leitura de RPM serve somente para
+informar movimento detectado; não define intensidade segura ou meta de
+reabilitação. A conclusão de uma fase não pontua dados recebidos depois da meta.
+
+### Progressão, vitória e derrota
+
+O jogo começa em Circuitos Básicos. Cada conclusão abre a próxima fase após
+uma breve tela de resultado. Ao restaurar os três escudos do Sistema Central,
+o jogador vence. A integridade começa em 3 e é mantida entre as fases. Na Rede
+Instável e no Sistema Central, quando um objetivo já recebeu oito voltas mas
+ainda faltam pares regulares, cada seis voltas extras sem estabilização causam
+uma interferência de Nó Zero e reduzem a integridade em 1. Integridade zero
+encerra a tentativa em derrota. Não há limite de tempo nem meta de velocidade;
+um ritmo lento e regular não causa dano. O resultado final mantém as métricas
+das três fases até o jogador iniciar uma nova tentativa.
+
+Para conferir a lógica de progressão sem abrir a janela do jogo, execute
+`gradle verifyCampaign` em `desktop/`.
 
 ### Fase 2 — Rede Instável
 
-Para jogar sem as peças IoT:
+Para abrir somente esta fase durante o desenvolvimento, sem as peças IoT:
 
 ```text
 gradle run -Pphase=2 -Psimulate=true
@@ -119,10 +134,10 @@ são parâmetros lúdicos a validar, não critérios clínicos.
 
 **Nó Zero** aparece no cenário e provoca uma interferência visual enquanto o
 sinal do nó atual não está estável. Não há flashes ou punição por ritmo baixo.
-Quando os três nós são estabilizados, a tela de conclusão mostra o resultado e
-Nó Zero recua para o Sistema Central. `P` ou `Espaço` pausa e `R` reinicia, como
-na fase 1. A navegação exclusivamente por IoT ainda depende da decisão sobre
-controles físicos e testes com o dispositivo.
+Quando os três nós são estabilizados, a campanha segue para o Sistema Central.
+No modo de fase isolada, `R` reinicia a fase; na campanha, a integridade e os
+resultados anteriores continuam. A navegação exclusivamente por IoT ainda
+depende da decisão sobre controles físicos e testes com o dispositivo.
 
 ### Fase 3 — Sistema Central
 
@@ -147,10 +162,9 @@ durante a interferência; um escudo com regularidade insuficiente fica aberto
 para recuperação sem perder o progresso. Os números e a tolerância de 35% são
 parâmetros lúdicos provisórios, não critérios clínicos.
 
-Após os três escudos, a conclusão mostra a restauração do Sistema Central.
-`P` ou `Espaço` pausa e `R` reinicia em desenvolvimento. As fases são abertas
-separadamente pelo parâmetro `phase`; a navegação integral por IoT e a passagem
-automática entre fases ainda dependem de decisão e teste com o dispositivo.
+Após os três escudos, a campanha mostra a vitória e um resumo de todas as
+fases. O parâmetro `phase` permite abrir fases isoladas para desenvolvimento;
+sem esse parâmetro, o jogo inicia a campanha completa.
 
 ### Visualizar os cenários sem jogar
 
@@ -162,8 +176,8 @@ gradle run -Ppreview=central
 ```
 
 Cada comando abre apenas a arte da fase indicada, com o aviso de prévia visual.
-As prévias servem apenas para visualizar a arte. Para jogar, use `-Pphase=2`
-ou `-Pphase=3`.
+As prévias servem apenas para visualizar a arte. Para jogar a campanha, execute
+`gradle run -Psimulate=true` ou use a porta do ESP32.
 
 ## Verificação na bancada
 
@@ -183,6 +197,6 @@ pendentes de validação profissional.
 ## Escopo após este protótipo
 
 Adicionar calibração de cadência individual, menu/pausa/reinício controlados por
-IoT, transição entre fases, métricas persistidas e tratamento de reconexão.
+IoT, métricas persistidas entre execuções e tratamento de reconexão.
 Validar as três fases na tela e no dispositivo real antes de considerar a
 integração concluída.
