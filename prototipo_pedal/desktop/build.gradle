@@ -28,4 +28,5 @@ tasks.named('run', JavaExec) {
     systemProperty 'recode.port', project.findProperty('port') ?: ''
     systemProperty 'recode.simulate', project.findProperty('simulate') ?: 'false'
     systemProperty 'recode.preview', project.findProperty('preview') ?: ''
+    systemProperty 'recode.phase', project.findProperty('phase') ?: '1'
 }
