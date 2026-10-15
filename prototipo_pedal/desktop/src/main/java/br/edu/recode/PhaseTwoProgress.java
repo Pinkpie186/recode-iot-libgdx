@@ -68,6 +68,7 @@ final class PhaseTwoProgress {
         paused = !paused;
         lastTurnMillis = -1;
         lastIntervalMillis = -1;
+        stablePairs = 0;
     }
 
     void restart() {
