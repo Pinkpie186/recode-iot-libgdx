@@ -24,6 +24,7 @@ final class ReCodePedalGame extends ApplicationAdapter {
     private final PedalCounter counter;
     private final PhaseOneProgress progress;
     private final boolean manageSource;
+    private final EnergyFragments fragments;
     private SpriteBatch batch;
     private BitmapFont font;
     private ShapeRenderer shapes;
@@ -38,16 +39,24 @@ final class ReCodePedalGame extends ApplicationAdapter {
     void setCampaignLocked(boolean locked) { campaignLocked = locked; }
 
     ReCodePedalGame(PedalSource source, boolean simulated) {
-        this(source, simulated, new PedalCounter(), new PhaseOneProgress(), true);
+        this(source, simulated, new PedalCounter(), new PhaseOneProgress(), true,
+                new EnergyFragments());
     }
 
     ReCodePedalGame(PedalSource source, boolean simulated, PedalCounter counter,
                     PhaseOneProgress progress, boolean manageSource) {
+        this(source, simulated, counter, progress, manageSource, new EnergyFragments());
+    }
+
+    ReCodePedalGame(PedalSource source, boolean simulated, PedalCounter counter,
+                    PhaseOneProgress progress, boolean manageSource,
+                    EnergyFragments fragments) {
         this.source = source;
         this.simulated = simulated;
         this.counter = counter;
         this.progress = progress;
         this.manageSource = manageSource;
+        this.fragments = fragments;
     }
 
     @Override public void create() {
@@ -63,7 +72,7 @@ final class ReCodePedalGame extends ApplicationAdapter {
     @Override public void render() {
         long now = System.nanoTime();
         // Atalhos de desenvolvimento; o objetivo da fase continua ligado ao pedal.
-        if (!campaignLocked && (Gdx.input.isKeyJustPressed(Input.Keys.P) ||
+        if (manageSource && !campaignLocked && (Gdx.input.isKeyJustPressed(Input.Keys.P) ||
                 Gdx.input.isKeyJustPressed(Input.Keys.SPACE))) progress.togglePause();
         if (manageSource && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             progress.restart();
@@ -96,14 +105,18 @@ final class ReCodePedalGame extends ApplicationAdapter {
         float right = width * 0.89f;
         float centerY = height * 0.48f;
         float eloX = left + (right - left) * progress.rotations() / PhaseOneProgress.TARGET_ROTATIONS;
+        float journey = progress.rotations() / (float) PhaseOneProgress.TARGET_ROTATIONS;
+        fragments.update(journey, deltaTime);
 
         Gdx.gl.glClearColor(BACKGROUND.r, BACKGROUND.g, BACKGROUND.b, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
         batch.begin();
-        background.draw(batch, width, height);
+        background.draw(batch, width, height, journey, animationTime);
         batch.end();
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        StageDecor.draw(shapes, width, height, journey, animationTime, energyPulse, 1);
+        fragments.draw(shapes, left, right, centerY + 72f, animationTime);
         drawWorld(width, height, left, right, centerY, eloX);
         drawText(width, height, left, right, centerY, eloX, now);
         Gdx.gl.glDisable(GL20.GL_BLEND);
@@ -200,7 +213,7 @@ final class ReCodePedalGame extends ApplicationAdapter {
             font.draw(batch, rhythm + "  |  " + Math.round(rpm) + " RPM", right - 300, 70);
             font.draw(batch, "Proximo objetivo: " + progress.nextRepairAt() + " voltas", left, 42);
             font.draw(batch, manageSource ? "P/Espaco: pausa   R: reiniciar (desenvolvimento)"
-                    : "P/Espaco: pausa", right - 390, 42);
+                    : "Espaco: opcoes", right - 390, 42);
         }
 
         if (progress.isPaused()) {

@@ -23,5 +23,17 @@ final class ScenarioBackground implements Disposable {
                 (height - drawHeight) / 2f, drawWidth, drawHeight);
     }
 
+    /** A camera percorre a arte ampliada conforme ELO avanca na fase. */
+    void draw(SpriteBatch batch, int width, int height, float journey, float time) {
+        float scale = Math.max(width / (float) texture.getWidth(),
+                height / (float) texture.getHeight()) * 1.28f;
+        float drawWidth = texture.getWidth() * scale;
+        float drawHeight = texture.getHeight() * scale;
+        float position = Math.max(0f, Math.min(1f, journey));
+        float x = -(drawWidth - width) * position;
+        float y = (height - drawHeight) / 2f + (float) Math.sin(time * 0.65f) * 5f;
+        batch.draw(texture, x, y, drawWidth, drawHeight);
+    }
+
     @Override public void dispose() { texture.dispose(); }
 }
