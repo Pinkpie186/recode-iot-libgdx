@@ -1,7 +1,7 @@
 # ReCode: campanha com três fases
 
-Esta versão executa **Circuitos Básicos**, **Rede Instável** e **Sistema Central**
-na mesma janela. O ESP32 envia a contagem do mini pedal por USB serial; cada
+Esta versão abre um menu e executa **Circuitos Básicos**, **Rede Instável** e
+**Sistema Central** na mesma janela. O ESP32 envia a contagem do mini pedal por USB serial; cada
 volta válida avança ELO. Após a conclusão de uma fase, a próxima começa
 automaticamente. A leitura do pedal acompanha toda a campanha, e o resultado
 final mantém voltas, objetivos, pares regulares e tempo de movimento de cada
@@ -89,11 +89,29 @@ depois segue para Sistema Central. A simulação não demonstra controle via IoT
 sozinho ao requisito de avaliação do projeto. Para testar o dispositivo real,
 feche a simulação e use `-Pport=COM3` com a porta correta.
 
-**Controles temporários de desenvolvimento:** `P` ou `Espaço` pausa/retoma;
-`R` inicia uma nova campanha após vitória ou derrota. Voltas recebidas durante
-a pausa ou a transição são descartadas. A leitura de RPM serve somente para
+**Menu e controles:** use as setas ou clique para escolher uma opção e `Enter`
+para confirmar. O menu permite iniciar uma campanha, continuar a tentativa
+atual, ver as instruções e sair. Durante a campanha, `Espaço`, `P` ou `Esc`
+abre a pausa com as opções **Continuar**, **Voltar ao menu** e **Nova campanha**.
+`M` também volta ao menu enquanto a pausa está aberta. `R` inicia uma nova
+campanha após vitória ou derrota. Voltas recebidas durante a pausa ou a
+transição são descartadas. A leitura de RPM serve somente para
 informar movimento detectado; não define intensidade segura ou meta de
 reabilitação. A conclusão de uma fase não pontua dados recebidos depois da meta.
+Ao voltar ao menu, **Continuar campanha** preserva a fase, a integridade e o
+desempenho da tentativa.
+
+O fundo percorre a arte conforme ELO avança, com fragmentos e estruturas em
+planos de movimento diferentes. Há três fragmentos de energia por fase: ELO os
+recolhe ao chegar a cada trecho, e a campanha exibe o total de 0 a 9. Os
+circuitos, nós e condutos continuam reagindo às pedaladas.
+
+Na Rede Instável e no Sistema Central, **três pares seguidos de pedaladas
+regulares** carregam o escudo do mascote. Ele protege ELO dos ataques de Nó Zero
+por **15 segundos de jogo**; a contagem para durante a pausa e no menu. O
+indicador mostra a carga ou o tempo restante. Um ataque bloqueado gera um pulso
+ciano; um impacto sem proteção faz ELO tremer, aciona a animação de dano e
+reduz a integridade.
 
 ### Progressão, vitória e derrota
 
