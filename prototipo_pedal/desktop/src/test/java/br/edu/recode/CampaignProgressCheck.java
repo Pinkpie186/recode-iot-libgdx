@@ -83,6 +83,12 @@ public final class CampaignProgressCheck {
             progress.acceptTurns(1, time);
         }
         require(progress.nodes() == 1, "sequencia continua estabiliza o no");
+        progress.acceptTurns(1, time + 1000);
+        progress.acceptTurns(1, time + 2000);
+        progress.acceptTurns(1, time + 3000);
+        require(progress.stablePairs() > 0, "sequencia em andamento antes da pausa");
+        progress.togglePause();
+        require(progress.stablePairs() == 0, "pausa reinicia sequencia regular");
     }
 
     private static void phaseThreeRequiresOrderedSequence() {
