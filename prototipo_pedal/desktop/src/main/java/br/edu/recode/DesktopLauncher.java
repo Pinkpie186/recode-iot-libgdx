@@ -9,7 +9,8 @@ public final class DesktopLauncher {
 
     public static void main(String[] args) {
         String port = System.getProperty("recode.port", "").trim();
-        boolean simulated = Boolean.parseBoolean(System.getProperty("recode.simulate", "false"));
+        boolean keyboard = Boolean.parseBoolean(System.getProperty("recode.keyboard", "false"));
+        boolean simulated = keyboard || Boolean.parseBoolean(System.getProperty("recode.simulate", "false"));
         String phase = System.getProperty("recode.phase", "campaign").trim();
         String preview = System.getProperty("recode.preview", "").trim().toLowerCase();
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
@@ -23,9 +24,11 @@ public final class DesktopLauncher {
             config.setTitle("ReCode - PREVIA Sistema Central");
             game = new ScenarioPreviewGame("scenarios/sistema_central.png", "Sistema Central");
         } else if (preview.isEmpty()) {
-            PedalSource source = simulated ? new SimulatedPedalSource() : new SerialPedalSource(port);
+            PedalSource source = keyboard ? new KeyboardPedalSource()
+                    : simulated ? new SimulatedPedalSource() : new SerialPedalSource(port);
             if ("campaign".equals(phase)) {
-                config.setTitle(simulated ? "ReCode - Campanha (simulacao)" : "ReCode - Campanha");
+                config.setTitle(keyboard ? "ReCode - Campanha (teclado)"
+                        : simulated ? "ReCode - Campanha (simulacao)" : "ReCode - Campanha");
                 game = new CampaignGame(source, simulated);
             } else if ("1".equals(phase)) {
                 config.setTitle(simulated ? "ReCode - Circuitos Basicos (simulacao)" : "ReCode - Circuitos Basicos");

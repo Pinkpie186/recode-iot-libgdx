@@ -325,7 +325,9 @@ final class CampaignGame extends ApplicationAdapter {
             font.getData().setScale(1.15f);
             font.draw(batch, "Reconstrua a rede com ELO", width * 0.12f, height * 0.71f);
             font.setColor(MUTED);
-            font.draw(batch, simulated ? "Modo de simulacao do pedal" : "Controle por mini pedal IoT",
+            font.draw(batch, source instanceof KeyboardPedalSource
+                            ? "Teste no teclado: F = uma pedalada"
+                            : simulated ? "Modo de simulacao do pedal" : "Controle por mini pedal IoT",
                     width * 0.12f, height * 0.66f);
             String[] options = active == null
                     ? new String[] {"Jogar", "Como jogar", "Sair"}
@@ -351,7 +353,10 @@ final class CampaignGame extends ApplicationAdapter {
         font.draw(batch, "Como jogar", width * 0.12f, height * 0.78f);
         font.getData().setScale(1.15f);
         font.setColor(Color.WHITE);
-        font.draw(batch, "Pedale para conduzir ELO e restaurar os objetos.", width * 0.12f, height * 0.68f);
+        font.draw(batch, source instanceof KeyboardPedalSource
+                        ? "Toque F para pedalar e conduzir ELO."
+                        : "Pedale para conduzir ELO e restaurar os objetos.",
+                width * 0.12f, height * 0.68f);
         font.draw(batch, "Fase 2: mantenha movimentos regulares.", width * 0.12f, height * 0.59f);
         font.draw(batch, "Fase 3: precisao, ritmo e estabilidade.", width * 0.12f, height * 0.50f);
         font.setColor(CYAN);
