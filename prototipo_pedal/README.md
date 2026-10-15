@@ -74,6 +74,12 @@ voltas anteriores à abertura do jogo.
 
 ### Trabalhar antes de ter as peças
 
+**Teste interativo no Windows:** abra `Jogar-ReCode.cmd` com dois cliques. No
+menu, pressione `Enter` para jogar. Cada toque em `F` simula uma pedalada; toque
+em intervalos regulares para carregar o escudo nas fases 2 e 3. `Espaço` abre a
+pausa. Este teste requer JDK 17 e as dependências do Gradle já baixadas. Também
+é possível iniciar pela pasta `desktop/` com `gradle run -Pkeyboard=true`.
+
 Com JDK 17 e Gradle instalados, abra `desktop/` no terminal e execute:
 
 ```text
