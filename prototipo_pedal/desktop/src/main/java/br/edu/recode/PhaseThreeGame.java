@@ -24,6 +24,9 @@ final class PhaseThreeGame extends ApplicationAdapter {
     private final PedalCounter counter;
     private final PhaseThreeProgress progress;
     private final boolean manageSource;
+    private final MascotShield shield;
+    private final CombatVisuals combat;
+    private final EnergyFragments fragments;
     private SpriteBatch batch;
     private ShapeRenderer shapes;
     private BitmapFont font;
@@ -40,16 +43,34 @@ final class PhaseThreeGame extends ApplicationAdapter {
     void setCampaignLocked(boolean locked) { campaignLocked = locked; }
 
     PhaseThreeGame(PedalSource source, boolean simulated) {
-        this(source, simulated, new PedalCounter(), new PhaseThreeProgress(), true);
+        this(source, simulated, new PedalCounter(), new PhaseThreeProgress(), true,
+                new MascotShield(), new CombatVisuals(), new EnergyFragments());
     }
 
     PhaseThreeGame(PedalSource source, boolean simulated, PedalCounter counter,
                    PhaseThreeProgress progress, boolean manageSource) {
+        this(source, simulated, counter, progress, manageSource,
+                new MascotShield(), new CombatVisuals(), new EnergyFragments());
+    }
+
+    PhaseThreeGame(PedalSource source, boolean simulated, PedalCounter counter,
+                   PhaseThreeProgress progress, boolean manageSource,
+                   MascotShield shield, CombatVisuals combat) {
+        this(source, simulated, counter, progress, manageSource,
+                shield, combat, new EnergyFragments());
+    }
+
+    PhaseThreeGame(PedalSource source, boolean simulated, PedalCounter counter,
+                   PhaseThreeProgress progress, boolean manageSource,
+                   MascotShield shield, CombatVisuals combat, EnergyFragments fragments) {
         this.source = source;
         this.simulated = simulated;
         this.counter = counter;
         this.progress = progress;
         this.manageSource = manageSource;
+        this.shield = shield;
+        this.combat = combat;
+        this.fragments = fragments;
     }
 
     @Override public void create() {
@@ -65,7 +86,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
 
     @Override public void render() {
         long now = System.nanoTime();
-        if (!campaignLocked && (Gdx.input.isKeyJustPressed(Input.Keys.P) ||
+        if (manageSource && !campaignLocked && (Gdx.input.isKeyJustPressed(Input.Keys.P) ||
                 Gdx.input.isKeyJustPressed(Input.Keys.SPACE))) progress.togglePause();
         if (manageSource && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             progress.restart();
@@ -78,6 +99,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
             if (turns > 0 && !campaignLocked && !progress.isPaused() && !progress.isComplete()) {
                 int routeBefore = progress.activeRoute();
                 int restored = progress.acceptTurns(turns, frame.lastCycleMillis);
+                if (shield.acceptTurns(turns, frame.lastCycleMillis)) combat.shieldStarted();
                 energyPulse = 1f;
                 if (restored > 0) shieldPulse = 1f;
                 if (!progress.isComplete() && progress.activeRoute() != routeBefore) routePulse = 1f;
@@ -87,6 +109,8 @@ final class PhaseThreeGame extends ApplicationAdapter {
         boolean connected = source.lastFrameNanos() >= 0 &&
                 now - source.lastFrameNanos() <= 2_000_000_000L;
         if (!campaignLocked) progress.update(delta, connected && counter.rpm(now) > 0);
+        if (manageSource) shield.update(delta, !progress.isPaused() && !progress.isComplete());
+        combat.update(delta);
         animationTime += delta;
         energyPulse = Math.max(0f, energyPulse - delta * 2.4f);
         shieldPulse = Math.max(0f, shieldPulse - delta * 1.15f);
@@ -109,11 +133,13 @@ final class PhaseThreeGame extends ApplicationAdapter {
         float fraction = progress.shields() + Math.min(1f, stepFraction);
         float eloX = left + segment * fraction;
         float eloY = progress.activeRoute() == 0 ? upperY : lowerY;
+        float journey = Math.min(1f, fraction / PhaseThreeProgress.SHIELD_COUNT);
+        fragments.update(journey, delta);
 
         Gdx.gl.glClearColor(BACKGROUND.r, BACKGROUND.g, BACKGROUND.b, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
         batch.begin();
-        background.draw(batch, width, height);
+        background.draw(batch, width, height, journey, animationTime);
         if (!progress.isComplete()) {
             // No Zero observa ELO do fundo da sala, como na referencia visual.
             float presence = 0.82f - progress.shields() * 0.19f;
@@ -127,6 +153,8 @@ final class PhaseThreeGame extends ApplicationAdapter {
 
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        StageDecor.draw(shapes, width, height, journey, animationTime, energyPulse, 3);
+        fragments.draw(shapes, left, right, centerY + 105f, animationTime);
         drawWorld(width, height, left, right, upperY, lowerY, segment, eloX, eloY);
         drawSpritesAndText(width, height, left, right, upperY, lowerY, segment,
                 eloX, eloY, connected, now);
@@ -168,6 +196,13 @@ final class PhaseThreeGame extends ApplicationAdapter {
 
         shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b, 0.17f + energyPulse * 0.20f);
         shapes.circle(eloX, eloY, 30 + energyPulse * 11);
+        combat.draw(shapes, eloX, eloY + 12f, animationTime, shield);
+        if (combat.hitActive() || combat.blockedActive()) {
+            shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b,
+                    combat.hitActive() ? combat.hitStrength() * 0.65f : 0.35f);
+            shapes.rectLine(width * 0.76f, (upperY + lowerY) / 2f + 45f,
+                    eloX, eloY + 12f, 6f);
+        }
         if (routePulse > 0f && !progress.isComplete()) {
             shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b, routePulse * 0.32f);
             shapes.rect(eloX - 24, lowerY, 48, upperY - lowerY);
@@ -197,9 +232,11 @@ final class PhaseThreeGame extends ApplicationAdapter {
                         "Aguardando dados do ESP32" : source.error();
         batch.begin();
         if (!progress.isPaused() && !progress.isComplete()) {
-            int eloRow = shieldPulse > 0 ? 3 : energyPulse > 0 ? 1 : 0;
-            elo.draw(batch, eloRow, animationTime, eloX, eloY + 12, 88);
-            mascot.draw(batch, progress.interferenceActive() ? 2 : 0,
+            int eloRow = combat.hitActive() ? 2 : shieldPulse > 0 ? 3 : energyPulse > 0 ? 1 : 0;
+            if (combat.hitActive()) batch.setColor(1f, 0.45f, 0.62f, 1f);
+            elo.draw(batch, eloRow, animationTime, eloX + combat.hitOffset(animationTime), eloY + 12, 88);
+            batch.setColor(Color.WHITE);
+            mascot.draw(batch, shield.active() ? 2 : progress.interferenceActive() ? 2 : 0,
                     animationTime, Math.min(right - 22, eloX + 55), eloY + 72, 60);
         }
 
@@ -211,6 +248,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
         font.draw(batch, simulated ? "SIMULACAO DE DESENVOLVIMENTO - sem dispositivo IoT" :
                 "Restaure os condutos e estabilize o nucleo", left, height - 71);
         if (manageSource) font.draw(batch, "P: pausa   R: reiniciar", width - 235, height - 71);
+        else font.draw(batch, "Espaco: opcoes", width - 210, 25);
         font.setColor(Color.WHITE);
         font.draw(batch, "Escudos: " + progress.shields() + " / 3", left, height - 130);
         font.draw(batch, "Condutos: " + progress.restoredConduits() + " / 6",
