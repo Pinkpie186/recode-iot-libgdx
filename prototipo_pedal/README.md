@@ -100,8 +100,9 @@ reabilitação. A conclusão de uma fase não pontua dados recebidos depois da m
 O jogo começa em Circuitos Básicos. Cada conclusão abre a próxima fase após
 uma breve tela de resultado. Ao restaurar os três escudos do Sistema Central,
 o jogador vence. A integridade começa em 3 e é mantida entre as fases. Na Rede
-Instável e no Sistema Central, quando um objetivo já recebeu oito voltas mas
-ainda faltam pares regulares, cada seis voltas extras sem estabilização causam
+Instável, após oito voltas em um nó sem concluir a sequência regular, e no Sistema
+Central, após nove voltas em um escudo sem completar as três etapas, cada seis
+voltas extras sem estabilização causam
 uma interferência de Nó Zero e reduzem a integridade em 1. Integridade zero
 encerra a tentativa em derrota. Não há limite de tempo nem meta de velocidade;
 um ritmo lento e regular não causa dano. O resultado final mantém as métricas
@@ -125,10 +126,11 @@ gradle run -Pphase=2 -Pport=COM3
 ```
 
 ELO atravessa a rede e estabiliza **três nós**. Cada nó recebe pelo menos oito
-voltas válidas e dois pares de intervalos regulares. A comparação é com o ritmo
+voltas válidas e dois pares **seguidos** de intervalos regulares. A comparação é com o ritmo
 imediatamente anterior do próprio jogador, com tolerância provisória de 35%; não
 existe meta de velocidade. Voltas fora desse intervalo continuam registradas, e
-o progresso anterior não é apagado. Se faltarem pares regulares depois da oitava
+o total de voltas e os nós já recuperados não são apagados; apenas a sequência
+do nó atual recomeça quando o intervalo muda. Se faltarem pares regulares depois da oitava
 volta, o nó permanece aberto para recuperação sem limite de tempo. Esses valores
 são parâmetros lúdicos a validar, não critérios clínicos.
 
@@ -154,13 +156,20 @@ gradle run -Pphase=3 -Pport=COM3
 ```
 
 No confronto final, ELO restaura **seis condutos** e estabiliza **três escudos**
-de Nó Zero. Cada escudo precisa de pelo menos oito voltas válidas e dois pares
-de intervalos regulares. No meio de cada trecho, Nó Zero desvia a energia para
-outra rota; a rota ativa é destacada na tela e ELO a acompanha automaticamente.
-O jogador não precisa aumentar a velocidade. As voltas continuam registradas
-durante a interferência; um escudo com regularidade insuficiente fica aberto
-para recuperação sem perder o progresso. Os números e a tolerância de 35% são
-parâmetros lúdicos provisórios, não critérios clínicos.
+de Nó Zero. Cada escudo pede a sequência: **precisão** (três voltas detectadas
+individualmente), **ritmo** (dois pares de intervalos regulares seguidos) e
+**estabilidade** (mais três pares regulares seguidos). O jogo mostra a etapa
+ativa e o progresso. Após a precisão, Nó Zero desvia a energia para outra rota;
+ELO a acompanha automaticamente. O vírus aparece em grande escala no fundo do
+cenário, usando a forma de sua folha de sprites. Ele enfraquece a cada escudo
+restaurado e desaparece na vitória.
+
+O jogador não precisa aumentar a velocidade. Voltas em lote continuam no total,
+mas não comprovam uma volta individual nem um intervalo regular. Uma mudança de
+ritmo reinicia apenas a sequência da etapa atual; escudos já restaurados
+permanecem. O pedal mede voltas e intervalos, então a precisão e a coordenação
+são representadas por esse sinal de forma provisória. Os números e a tolerância
+de 35% são parâmetros lúdicos, não critérios clínicos.
 
 Após os três escudos, a campanha mostra a vitória e um resumo de todas as
 fases. O parâmetro `phase` permite abrir fases isoladas para desenvolvimento;
