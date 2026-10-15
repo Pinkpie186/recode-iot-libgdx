@@ -9,6 +9,9 @@ public final class CampaignProgressCheck {
         irregularTurnsCanCauseDefeatWithoutTimeLimit();
         phaseTwoRequiresContinuousRhythm();
         phaseThreeRequiresOrderedSequence();
+        mascotShieldLastsFifteenPlayingSeconds();
+        shieldBlocksThenAllowsTheNextHit();
+        fragmentsReactToEloProgress();
         System.out.println("CampaignProgressCheck: OK");
     }
 
@@ -107,6 +110,56 @@ public final class CampaignProgressCheck {
         progress.acceptTurns(1, 10000);
         require(progress.shields() == 1 && progress.step() == PhaseThreeProgress.Step.PRECISION,
                 "estabilidade conclui a sequencia e inicia proximo escudo");
+    }
+
+    private static void mascotShieldLastsFifteenPlayingSeconds() {
+        MascotShield shield = new MascotShield();
+        for (int turn = 1; turn <= 5; turn++) shield.acceptTurns(1, turn * 1000L);
+        require(shield.active() && shield.activations() == 1, "ritmo carrega escudo");
+        shield.update(7f, true);
+        shield.update(30f, false);
+        require(shield.active() && shield.remainingSeconds() == 8f,
+                "pausa congela a duracao do escudo");
+        require(shield.blockAttack() && shield.blockedAttacks() == 1,
+                "escudo bloqueia ataque");
+        shield.update(8f, true);
+        require(!shield.active() && !shield.blockAttack(), "escudo expira apos 15 segundos");
+    }
+
+    private static void shieldBlocksThenAllowsTheNextHit() {
+        CampaignProgress run = new CampaignProgress();
+        run.first().addRotations(20);
+        run.observe();
+        run.advance();
+        for (int turn = 1; turn <= 5; turn++)
+            run.mascotShield().acceptTurns(1, turn * 1000L);
+
+        long time = 1000;
+        for (int turn = 1; turn <= 14; turn++) {
+            time += turn % 2 == 0 ? 300 : 2000;
+            run.second().acceptTurns(1, time);
+            run.observe();
+        }
+        require(run.integrity() == 3 && run.attackSequence() == 1 &&
+                run.lastAttackBlocked(), "primeiro ataque bloqueado");
+        run.mascotShield().update(15f, true);
+        for (int turn = 15; turn <= 20; turn++) {
+            time += turn % 2 == 0 ? 300 : 2000;
+            run.second().acceptTurns(1, time);
+            run.observe();
+        }
+        require(run.integrity() == 2 && run.attackSequence() == 2 &&
+                !run.lastAttackBlocked(), "impacto apos expiracao reduz integridade");
+    }
+
+    private static void fragmentsReactToEloProgress() {
+        EnergyFragments fragments = new EnergyFragments();
+        fragments.update(0.24f, 0f);
+        require(fragments.collected() == 0, "fragmento aguarda ELO");
+        fragments.update(0.75f, 0f);
+        require(fragments.collected() == 3, "ELO recolhe objetos do cenario");
+        fragments.update(1f, 1f);
+        require(fragments.collected() == 3, "fragmentos nao duplicam");
     }
 
     private static void require(boolean condition, String description) {
