@@ -24,6 +24,9 @@ final class PhaseTwoGame extends ApplicationAdapter {
     private final PedalCounter counter;
     private final PhaseTwoProgress progress;
     private final boolean manageSource;
+    private final MascotShield shield;
+    private final CombatVisuals combat;
+    private final EnergyFragments fragments;
     private SpriteBatch batch;
     private ShapeRenderer shapes;
     private BitmapFont font;
@@ -39,16 +42,34 @@ final class PhaseTwoGame extends ApplicationAdapter {
     void setCampaignLocked(boolean locked) { campaignLocked = locked; }
 
     PhaseTwoGame(PedalSource source, boolean simulated) {
-        this(source, simulated, new PedalCounter(), new PhaseTwoProgress(), true);
+        this(source, simulated, new PedalCounter(), new PhaseTwoProgress(), true,
+                new MascotShield(), new CombatVisuals(), new EnergyFragments());
     }
 
     PhaseTwoGame(PedalSource source, boolean simulated, PedalCounter counter,
                  PhaseTwoProgress progress, boolean manageSource) {
+        this(source, simulated, counter, progress, manageSource,
+                new MascotShield(), new CombatVisuals(), new EnergyFragments());
+    }
+
+    PhaseTwoGame(PedalSource source, boolean simulated, PedalCounter counter,
+                 PhaseTwoProgress progress, boolean manageSource,
+                 MascotShield shield, CombatVisuals combat) {
+        this(source, simulated, counter, progress, manageSource,
+                shield, combat, new EnergyFragments());
+    }
+
+    PhaseTwoGame(PedalSource source, boolean simulated, PedalCounter counter,
+                 PhaseTwoProgress progress, boolean manageSource,
+                 MascotShield shield, CombatVisuals combat, EnergyFragments fragments) {
         this.source = source;
         this.simulated = simulated;
         this.counter = counter;
         this.progress = progress;
         this.manageSource = manageSource;
+        this.shield = shield;
+        this.combat = combat;
+        this.fragments = fragments;
     }
 
     @Override public void create() {
@@ -64,7 +85,7 @@ final class PhaseTwoGame extends ApplicationAdapter {
 
     @Override public void render() {
         long now = System.nanoTime();
-        if (!campaignLocked && (Gdx.input.isKeyJustPressed(Input.Keys.P) ||
+        if (manageSource && !campaignLocked && (Gdx.input.isKeyJustPressed(Input.Keys.P) ||
                 Gdx.input.isKeyJustPressed(Input.Keys.SPACE))) progress.togglePause();
         if (manageSource && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             progress.restart();
@@ -76,6 +97,7 @@ final class PhaseTwoGame extends ApplicationAdapter {
             int turns = counter.accept(frame, now);
             if (turns > 0 && !campaignLocked && !progress.isPaused() && !progress.isComplete()) {
                 int repaired = progress.acceptTurns(turns, frame.lastCycleMillis);
+                if (shield.acceptTurns(turns, frame.lastCycleMillis)) combat.shieldStarted();
                 energyPulse = 1f;
                 if (repaired > 0) nodePulse = 1f;
             }
@@ -84,6 +106,8 @@ final class PhaseTwoGame extends ApplicationAdapter {
         boolean connected = source.lastFrameNanos() >= 0 &&
                 now - source.lastFrameNanos() <= 2_000_000_000L;
         if (!campaignLocked) progress.update(delta, connected && counter.rpm(now) > 0);
+        if (manageSource) shield.update(delta, !progress.isPaused() && !progress.isComplete());
+        combat.update(delta);
         animationTime += delta;
         energyPulse = Math.max(0f, energyPulse - delta * 2.4f);
         nodePulse = Math.max(0f, nodePulse - delta * 1.2f);
@@ -97,15 +121,19 @@ final class PhaseTwoGame extends ApplicationAdapter {
         float fraction = progress.nodes() +
                 Math.min(1f, progress.nodeTurns() / (float) PhaseTwoProgress.TURNS_PER_NODE);
         float eloX = left + segment * fraction;
+        float journey = Math.min(1f, fraction / PhaseTwoProgress.NODE_COUNT);
+        fragments.update(journey, delta);
 
         Gdx.gl.glClearColor(BACKGROUND.r, BACKGROUND.g, BACKGROUND.b, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
         batch.begin();
-        background.draw(batch, width, height);
+        background.draw(batch, width, height, journey, animationTime);
         batch.end();
 
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        StageDecor.draw(shapes, width, height, journey, animationTime, energyPulse, 2);
+        fragments.draw(shapes, left, right, trackY + 74f, animationTime);
         drawShapes(width, height, left, right, trackY, segment, eloX);
         drawSpritesAndText(width, height, left, right, trackY, segment, eloX, connected, now);
         Gdx.gl.glDisable(GL20.GL_BLEND);
@@ -142,6 +170,12 @@ final class PhaseTwoGame extends ApplicationAdapter {
 
         shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b, 0.16f + energyPulse * 0.20f);
         shapes.circle(eloX, y, 31 + energyPulse * 11);
+        combat.draw(shapes, eloX, y + 15f, animationTime, shield);
+        if (combat.hitActive() || combat.blockedActive()) {
+            shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b,
+                    combat.hitActive() ? combat.hitStrength() * 0.65f : 0.35f);
+            shapes.rectLine(width * 0.82f, y + 35f, eloX, y + 15f, 5f);
+        }
 
         if (progress.interferenceActive() && !progress.isPaused()) {
             float x = left + segment * (progress.nodes() + 1);
@@ -168,9 +202,11 @@ final class PhaseTwoGame extends ApplicationAdapter {
                         "Aguardando dados do ESP32" : source.error();
         batch.begin();
         if (!progress.isPaused() && !progress.isComplete()) {
-            int eloRow = nodePulse > 0 ? 3 : energyPulse > 0 ? 1 : 0;
-            elo.draw(batch, eloRow, animationTime, eloX, y + 13, 90);
-            mascot.draw(batch, progress.interferenceActive() ? 2 : 0,
+            int eloRow = combat.hitActive() ? 2 : nodePulse > 0 ? 3 : energyPulse > 0 ? 1 : 0;
+            if (combat.hitActive()) batch.setColor(1f, 0.45f, 0.62f, 1f);
+            elo.draw(batch, eloRow, animationTime, eloX + combat.hitOffset(animationTime), y + 13, 90);
+            batch.setColor(Color.WHITE);
+            mascot.draw(batch, shield.active() ? 2 : progress.interferenceActive() ? 2 : 0,
                     animationTime, Math.min(right - 25, eloX + 56), y + 84, 63);
             int enemyRow = nodePulse > 0 ? 2 : progress.interferenceActive() ? 1 : 0;
             noZero.draw(batch, enemyRow, animationTime, width * 0.84f, y + 27, 172);
@@ -210,7 +246,7 @@ final class PhaseTwoGame extends ApplicationAdapter {
                     "Sinal em recuperacao", left, 24);
             font.setColor(MUTED);
             font.draw(batch, manageSource ? "P/Espaco: pausa   R: reiniciar"
-                    : "P/Espaco: pausa", right - 276, 24);
+                    : "Espaco: opcoes", right - 276, 24);
         }
 
         if (progress.isPaused()) {
