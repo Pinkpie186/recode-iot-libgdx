@@ -202,7 +202,7 @@ final class PhaseTwoGame extends ApplicationAdapter {
                 right - 165, 73);
         if (!progress.isComplete()) {
             font.draw(batch, "No atual: " + Math.min(progress.nodeTurns(), PhaseTwoProgress.TURNS_PER_NODE)
-                    + "/8 voltas; pares regulares: " + Math.min(progress.stablePairs(), 2)
+                    + "/8 voltas; pares seguidos: " + Math.min(progress.stablePairs(), 2)
                     + "/2", left, 47);
             font.setColor(progress.interferenceActive() ? CORRUPTION : RESTORED);
             font.draw(batch, progress.interferenceActive() ?

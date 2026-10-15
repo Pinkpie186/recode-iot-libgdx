@@ -42,6 +42,9 @@ final class PhaseTwoProgress {
             if (steady && i == 0) {
                 stablePairs++;
                 stablePairsTotal++;
+            } else {
+                // O no precisa de uma sequencia continua de movimentos regulares.
+                stablePairs = 0;
             }
             if (nodeTurns >= TURNS_PER_NODE && stablePairs >= STABLE_PAIRS_PER_NODE) {
                 nodes++;
