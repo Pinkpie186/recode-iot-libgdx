@@ -36,7 +36,7 @@ final class CampaignProgress {
                 status = Status.BETWEEN_PHASES;
             } else {
                 observeInterference(second.nodes(), second.nodeTurns(), second.stablePairs(),
-                        PhaseTwoProgress.TURNS_PER_NODE);
+                        PhaseTwoProgress.STABLE_PAIRS_PER_NODE, PhaseTwoProgress.TURNS_PER_NODE);
             }
         } else {
             turns[2] = third.totalTurns();
@@ -46,20 +46,21 @@ final class CampaignProgress {
             if (third.isComplete()) {
                 status = Status.VICTORY;
             } else {
-                observeInterference(third.shields(), third.shieldTurns(), third.stablePairs(),
-                        PhaseThreeProgress.TURNS_PER_SHIELD);
+                observeInterference(third.shields(), third.shieldTurns(), third.stabilityStreak(),
+                        PhaseThreeProgress.STABILITY_PAIRS, PhaseThreeProgress.MIN_TURNS_PER_SHIELD);
             }
         }
     }
 
-    private void observeInterference(int objective, int segmentTurns, int pairs, int target) {
+    private void observeInterference(int objective, int segmentTurns, int pairs,
+                                     int requiredPairs, int target) {
         if (objective != observedObjective) {
             observedObjective = objective;
             nextStrikeAt = target + EXTRA_TURNS_PER_STRIKE;
         }
         // Só há risco após o mínimo de voltas, quando faltam pares regulares.
         // Uma cadência lenta e regular nunca causa dano; não existe cronômetro.
-        if (segmentTurns < target || pairs >= 2) return;
+        if (segmentTurns < target || pairs >= requiredPairs) return;
         while (segmentTurns >= nextStrikeAt && integrity > 0) {
             integrity--;
             nextStrikeAt += EXTRA_TURNS_PER_STRIKE;

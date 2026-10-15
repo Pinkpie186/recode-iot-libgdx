@@ -100,8 +100,13 @@ final class PhaseThreeGame extends ApplicationAdapter {
         float upperY = centerY + 47f;
         float lowerY = centerY - 47f;
         float segment = (right - left) / PhaseThreeProgress.SHIELD_COUNT;
-        float fraction = progress.shields() +
-                Math.min(1f, progress.shieldTurns() / (float) PhaseThreeProgress.TURNS_PER_SHIELD);
+        float stepFraction = progress.step() == PhaseThreeProgress.Step.PRECISION
+                ? progress.precisionTurns() / (float) PhaseThreeProgress.PRECISION_TURNS / 3f
+                : progress.step() == PhaseThreeProgress.Step.RHYTHM
+                ? (1f + progress.rhythmStreak() / (float) PhaseThreeProgress.RHYTHM_PAIRS) / 3f
+                : (2f + progress.stabilityStreak() /
+                (float) PhaseThreeProgress.STABILITY_PAIRS) / 3f;
+        float fraction = progress.shields() + Math.min(1f, stepFraction);
         float eloX = left + segment * fraction;
         float eloY = progress.activeRoute() == 0 ? upperY : lowerY;
 
@@ -109,6 +114,15 @@ final class PhaseThreeGame extends ApplicationAdapter {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
         batch.begin();
         background.draw(batch, width, height);
+        if (!progress.isComplete()) {
+            // No Zero observa ELO do fundo da sala, como na referencia visual.
+            float presence = 0.82f - progress.shields() * 0.19f;
+            batch.setColor(1f, 1f, 1f, presence);
+            int enemyRow = shieldPulse > 0 ? 3 : progress.interferenceActive() ? 1 : 0;
+            noZero.draw(batch, enemyRow, animationTime, width * 0.76f,
+                    height * 0.56f, Math.min(width * 0.58f, height * 0.86f));
+            batch.setColor(Color.WHITE);
+        }
         batch.end();
 
         Gdx.gl.glEnable(GL20.GL_BLEND);
@@ -187,9 +201,6 @@ final class PhaseThreeGame extends ApplicationAdapter {
             elo.draw(batch, eloRow, animationTime, eloX, eloY + 12, 88);
             mascot.draw(batch, progress.interferenceActive() ? 2 : 0,
                     animationTime, Math.min(right - 22, eloX + 55), eloY + 72, 60);
-            int enemyRow = shieldPulse > 0 ? 3 : progress.interferenceActive() ? 1 : 0;
-            noZero.draw(batch, enemyRow, animationTime, width * 0.83f,
-                    (upperY + lowerY) / 2f + 20, 204);
         }
 
         font.setColor(Color.WHITE);
@@ -206,7 +217,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
                 right - 170, height - 130);
         if (!progress.isPaused() && !progress.isComplete()) {
             font.setColor(CORRUPTION);
-            font.draw(batch, "NO ZERO", width * 0.79f, lowerY - 62);
+            font.draw(batch, "NO ZERO", width * 0.77f, lowerY - 62);
         }
 
         font.setColor(MUTED);
@@ -214,9 +225,13 @@ final class PhaseThreeGame extends ApplicationAdapter {
         font.draw(batch, "Cadencia: " + Math.round(connected ? counter.rpm(now) : 0) + " RPM",
                 right - 165, 76);
         if (!progress.isComplete()) {
-            font.draw(batch, "Escudo atual: " + Math.min(progress.shieldTurns(), 8)
-                    + "/8 voltas; pares regulares: " + Math.min(progress.stablePairs(), 2)
-                    + "/2", left, 49);
+            String sequence = progress.step() == PhaseThreeProgress.Step.PRECISION
+                    ? "Precisao: " + progress.precisionTurns() + "/3 voltas individuais"
+                    : progress.step() == PhaseThreeProgress.Step.RHYTHM
+                    ? "Ritmo: " + progress.rhythmStreak() + "/2 pares seguidos"
+                    : "Estabilidade: " + progress.stabilityStreak() + "/3 pares seguidos";
+            font.draw(batch, "Escudo " + (progress.shields() + 1) + "/3  |  " + sequence,
+                    left, 49);
             font.setColor(progress.interferenceActive() ? CORRUPTION : RESTORED);
             font.draw(batch, progress.routeChanged() ?
                     "No Zero desviou a rota - ELO segue o sinal" :

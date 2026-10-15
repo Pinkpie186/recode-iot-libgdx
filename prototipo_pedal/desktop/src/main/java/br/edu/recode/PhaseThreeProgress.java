@@ -1,22 +1,29 @@
 package br.edu.recode;
 
-/** Estado ludico do confronto final. Os limites nao sao metas de exercicio. */
+/** Sequencia ludica do confronto final; os limites nao sao metas de exercicio. */
 final class PhaseThreeProgress {
+    enum Step { PRECISION, RHYTHM, STABILITY }
+
     static final int SHIELD_COUNT = 3;
-    static final int TURNS_PER_SHIELD = 8;
-    static final int STABLE_PAIRS_PER_SHIELD = 2;
+    static final int PRECISION_TURNS = 3;
+    static final int RHYTHM_PAIRS = 2;
+    static final int STABILITY_PAIRS = 3;
+    static final int MIN_TURNS_PER_SHIELD = 9;
 
     private int shields;
     private int shieldTurns;
-    private int stablePairs;
+    private int precisionTurns;
+    private int rhythmStreak;
+    private int stabilityStreak;
     private int stablePairsTotal;
     private int totalTurns;
+    private Step step = Step.PRECISION;
     private boolean paused;
     private float movingSeconds;
     private long lastTurnMillis = -1;
     private long lastIntervalMillis = -1;
 
-    /** Retorna o numero de escudos restaurados nesta leitura. */
+    /** Cada volta isolada avanca a precisao; as etapas seguintes pedem ritmo continuo. */
     int acceptTurns(int turns, long lastCycleMillis) {
         if (paused || isComplete() || turns <= 0) return 0;
         boolean steady = false;
@@ -39,17 +46,37 @@ final class PhaseThreeProgress {
         for (int i = 0; i < turns && !isComplete(); i++) {
             shieldTurns++;
             totalTurns++;
-            if (steady && i == 0) {
-                stablePairs++;
-                stablePairsTotal++;
-            }
-            if (shieldTurns >= TURNS_PER_SHIELD && stablePairs >= STABLE_PAIRS_PER_SHIELD) {
-                shields++;
-                restored++;
-                shieldTurns = 0;
-                stablePairs = 0;
-                lastTurnMillis = -1;
-                lastIntervalMillis = -1;
+            boolean individual = turns == 1;
+            if (steady && individual) stablePairsTotal++;
+
+            switch (step) {
+                case PRECISION:
+                    // Um lote de voltas nao informa o instante de cada movimento.
+                    if (individual && ++precisionTurns >= PRECISION_TURNS) {
+                        step = Step.RHYTHM;
+                        rhythmStreak = 0;
+                        lastIntervalMillis = -1;
+                    }
+                    break;
+                case RHYTHM:
+                    rhythmStreak = steady && individual ? rhythmStreak + 1 : 0;
+                    if (rhythmStreak >= RHYTHM_PAIRS) {
+                        step = Step.STABILITY;
+                        stabilityStreak = 0;
+                    }
+                    break;
+                case STABILITY:
+                    stabilityStreak = steady && individual ? stabilityStreak + 1 : 0;
+                    if (stabilityStreak >= STABILITY_PAIRS) {
+                        shields++;
+                        restored++;
+                        shieldTurns = precisionTurns = rhythmStreak = stabilityStreak = 0;
+                        step = Step.PRECISION;
+                        lastTurnMillis = lastIntervalMillis = -1;
+                    }
+                    break;
+                default:
+                    throw new IllegalStateException("Etapa desconhecida");
             }
         }
         return restored;
@@ -63,12 +90,14 @@ final class PhaseThreeProgress {
     void togglePause() {
         if (isComplete()) return;
         paused = !paused;
-        lastTurnMillis = -1;
-        lastIntervalMillis = -1;
+        lastTurnMillis = lastIntervalMillis = -1;
+        rhythmStreak = stabilityStreak = 0;
     }
 
     void restart() {
-        shields = shieldTurns = stablePairs = stablePairsTotal = totalTurns = 0;
+        shields = shieldTurns = precisionTurns = rhythmStreak = stabilityStreak = 0;
+        stablePairsTotal = totalTurns = 0;
+        step = Step.PRECISION;
         paused = false;
         movingSeconds = 0f;
         lastTurnMillis = lastIntervalMillis = -1;
@@ -76,20 +105,23 @@ final class PhaseThreeProgress {
 
     int shields() { return shields; }
     int shieldTurns() { return shieldTurns; }
-    int stablePairs() { return stablePairs; }
+    int precisionTurns() { return precisionTurns; }
+    int rhythmStreak() { return rhythmStreak; }
+    int stabilityStreak() { return stabilityStreak; }
     int stablePairsTotal() { return stablePairsTotal; }
     int totalTurns() { return totalTurns; }
+    Step step() { return step; }
     boolean isPaused() { return paused; }
     boolean isComplete() { return shields == SHIELD_COUNT; }
     float movingSeconds() { return movingSeconds; }
 
-    /** Apos metade do trecho, No Zero desvia a energia para a outra rota. */
-    boolean routeChanged() { return !isComplete() && shieldTurns >= TURNS_PER_SHIELD / 2; }
+    /** A rota muda quando ELO termina a etapa de precisao. */
+    boolean routeChanged() { return !isComplete() && step != Step.PRECISION; }
     int activeRoute() { return (shields + (routeChanged() ? 1 : 0)) % 2; }
-    int restoredConduits() {
-        return shields * 2 + (routeChanged() ? 1 : 0);
-    }
+    int restoredConduits() { return shields * 2 + (routeChanged() ? 1 : 0); }
     boolean interferenceActive() {
-        return !isComplete() && shieldTurns >= 2 && stablePairs < STABLE_PAIRS_PER_SHIELD;
+        return !isComplete() && shieldTurns >= 2 &&
+                (step != Step.STABILITY || stabilityStreak < STABILITY_PAIRS);
     }
 }
+
