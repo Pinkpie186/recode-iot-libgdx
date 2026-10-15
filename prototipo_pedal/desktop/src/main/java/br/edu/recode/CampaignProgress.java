@@ -10,6 +10,10 @@ final class CampaignProgress {
     private final PhaseOneProgress first = new PhaseOneProgress();
     private final PhaseTwoProgress second = new PhaseTwoProgress();
     private final PhaseThreeProgress third = new PhaseThreeProgress();
+    private final MascotShield mascotShield = new MascotShield();
+    private final EnergyFragments[] fragments = {
+            new EnergyFragments(), new EnergyFragments(), new EnergyFragments()
+    };
     private final int[] turns = new int[3];
     private final int[] objectives = new int[3];
     private final int[] stablePairs = new int[3];
@@ -19,6 +23,8 @@ final class CampaignProgress {
     private int observedObjective = -1;
     private int nextStrikeAt = PhaseTwoProgress.TURNS_PER_NODE + EXTRA_TURNS_PER_STRIKE;
     private Status status = Status.RUNNING;
+    private int attackSequence;
+    private boolean lastAttackBlocked;
 
     void observe() {
         if (status != Status.RUNNING) return;
@@ -62,7 +68,9 @@ final class CampaignProgress {
         // Uma cadência lenta e regular nunca causa dano; não existe cronômetro.
         if (segmentTurns < target || pairs >= requiredPairs) return;
         while (segmentTurns >= nextStrikeAt && integrity > 0) {
-            integrity--;
+            lastAttackBlocked = mascotShield.blockAttack();
+            attackSequence++;
+            if (!lastAttackBlocked) integrity--;
             nextStrikeAt += EXTRA_TURNS_PER_STRIKE;
         }
         if (integrity == 0) status = Status.DEFEAT;
@@ -78,6 +86,13 @@ final class CampaignProgress {
     PhaseOneProgress first() { return first; }
     PhaseTwoProgress second() { return second; }
     PhaseThreeProgress third() { return third; }
+    MascotShield mascotShield() { return mascotShield; }
+    EnergyFragments fragments(int number) { return fragments[number - 1]; }
+    int totalFragments() {
+        return fragments[0].collected() + fragments[1].collected() + fragments[2].collected();
+    }
+    int attackSequence() { return attackSequence; }
+    boolean lastAttackBlocked() { return lastAttackBlocked; }
     int phase() { return phase; }
     int integrity() { return integrity; }
     Status status() { return status; }
