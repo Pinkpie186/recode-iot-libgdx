@@ -134,36 +134,64 @@ final class PhaseThreeGame extends ApplicationAdapter {
         float eloX = left + segment * fraction;
         float eloY = progress.activeRoute() == 0 ? upperY : lowerY;
         float journey = Math.min(1f, fraction / PhaseThreeProgress.SHIELD_COUNT);
+        // A criatura ocupa o horizonte; o deslocamento discreto cria profundidade.
+        float bossX = width * (0.56f - journey * 0.04f);
+        float bossY = height * 0.47f;
+        float bossSize = Math.min(width * 0.72f, height * (1.10f + journey * 0.08f));
+        float mouthX = bossX;
+        float mouthY = bossY - bossSize * 0.04f;
         fragments.update(journey, delta);
 
         Gdx.gl.glClearColor(BACKGROUND.r, BACKGROUND.g, BACKGROUND.b, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
         batch.begin();
         background.draw(batch, width, height, journey, animationTime);
-        if (!progress.isComplete()) {
-            // No Zero observa ELO do fundo da sala, como na referencia visual.
-            float presence = 0.82f - progress.shields() * 0.19f;
-            batch.setColor(1f, 1f, 1f, presence);
-            int enemyRow = shieldPulse > 0 ? 3 : progress.interferenceActive() ? 1 : 0;
-            noZero.draw(batch, enemyRow, animationTime, width * 0.76f,
-                    height * 0.56f, Math.min(width * 0.58f, height * 0.86f));
-            batch.setColor(Color.WHITE);
-        }
         batch.end();
 
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        if (!progress.isComplete()) drawBossBacklight(bossX, bossY, bossSize);
+        batch.begin();
+        if (!progress.isComplete()) {
+            float presence = 0.96f - progress.shields() * 0.08f;
+            batch.setColor(1f, 1f, 1f, presence);
+            int enemyRow = shieldPulse > 0 ? 3 :
+                    combat.hitActive() || combat.blockedActive() || progress.interferenceActive()
+                            ? 1 : 0;
+            noZero.draw(batch, enemyRow, animationTime, bossX, bossY, bossSize);
+            batch.setColor(Color.WHITE);
+        }
+        batch.end();
+
         StageDecor.draw(shapes, width, height, journey, animationTime, energyPulse, 3);
         fragments.draw(shapes, left, right, centerY + 105f, animationTime);
-        drawWorld(width, height, left, right, upperY, lowerY, segment, eloX, eloY);
+        drawWorld(width, height, left, right, upperY, lowerY, segment,
+                eloX, eloY, mouthX, mouthY);
         drawSpritesAndText(width, height, left, right, upperY, lowerY, segment,
                 eloX, eloY, connected, now);
         Gdx.gl.glDisable(GL20.GL_BLEND);
     }
 
+    private void drawBossBacklight(float bossX, float bossY, float bossSize) {
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        float pulse = 0.5f + (float) Math.sin(animationTime * 2.2f) * 0.5f;
+        shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b, 0.07f + pulse * 0.04f);
+        shapes.circle(bossX, bossY + bossSize * 0.06f, bossSize * 0.59f);
+        shapes.setColor(CORRUPTION.r, 0.15f, 0.28f, 0.10f + pulse * 0.04f);
+        shapes.circle(bossX, bossY + bossSize * 0.03f, bossSize * 0.44f);
+        for (int i = 0; i < 8; i++) {
+            float drift = (float) Math.sin(animationTime * 0.5f + i * 1.7f) * 12f;
+            float x = bossX + (i - 3.5f) * bossSize * 0.15f + drift;
+            float y = bossY - bossSize * 0.30f + (i % 3) * bossSize * 0.08f;
+            shapes.setColor(CORRUPTION.r, 0.24f, 0.47f, 0.10f);
+            shapes.circle(x, y, bossSize * (0.10f + (i % 2) * 0.03f));
+        }
+        shapes.end();
+    }
+
     private void drawWorld(int width, int height, float left, float right,
                            float upperY, float lowerY, float segment,
-                           float eloX, float eloY) {
+                           float eloX, float eloY, float mouthX, float mouthY) {
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         shapes.setColor(PANEL);
         shapes.rect(0, height - 105, width, 105);
@@ -196,13 +224,8 @@ final class PhaseThreeGame extends ApplicationAdapter {
 
         shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b, 0.17f + energyPulse * 0.20f);
         shapes.circle(eloX, eloY, 30 + energyPulse * 11);
+        drawBackgroundAttack(mouthX, mouthY, eloX, eloY + 12f);
         combat.draw(shapes, eloX, eloY + 12f, animationTime, shield);
-        if (combat.hitActive() || combat.blockedActive()) {
-            shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b,
-                    combat.hitActive() ? combat.hitStrength() * 0.65f : 0.35f);
-            shapes.rectLine(width * 0.76f, (upperY + lowerY) / 2f + 45f,
-                    eloX, eloY + 12f, 6f);
-        }
         if (routePulse > 0f && !progress.isComplete()) {
             shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b, routePulse * 0.32f);
             shapes.rect(eloX - 24, lowerY, 48, upperY - lowerY);
@@ -210,8 +233,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
         if (progress.interferenceActive() && !progress.isPaused()) {
             float x = left + segment * (progress.shields() + 1);
             shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b, 0.32f);
-            shapes.rectLine(width * 0.76f, (upperY + lowerY) / 2f,
-                    x + 20, eloY, 5f);
+            shapes.rectLine(mouthX, mouthY, x + 20, eloY, 5f);
             shapes.rect(x - 23, eloY + 31, 46, 5);
         }
 
@@ -222,6 +244,20 @@ final class PhaseThreeGame extends ApplicationAdapter {
             shapes.rect(width * 0.16f, height * 0.76f, width * 0.68f, 4);
         }
         shapes.end();
+    }
+
+    private void drawBackgroundAttack(float mouthX, float mouthY, float eloX, float eloY) {
+        float strength = combat.hitActive() ? combat.hitStrength() :
+                combat.blockedActive() ? combat.blockedStrength() : 0f;
+        if (strength <= 0f) return;
+        float travel = Math.min(1f, (1f - strength) * 2.7f);
+        float tipX = mouthX + (eloX - mouthX) * travel;
+        float tipY = mouthY + (eloY - mouthY) * travel;
+        shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b, strength * 0.30f);
+        shapes.rectLine(mouthX, mouthY, tipX, tipY, 7f + travel * 9f);
+        shapes.setColor(1f, 0.68f, 0.96f, strength * 0.85f);
+        shapes.rectLine(mouthX, mouthY, tipX, tipY, 2f + travel * 4f);
+        shapes.circle(tipX, tipY, 5f + travel * 11f);
     }
 
     private void drawSpritesAndText(int width, int height, float left, float right,
