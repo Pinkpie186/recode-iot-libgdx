@@ -11,6 +11,7 @@ public final class CampaignProgressCheck {
         phaseThreeRequiresOrderedSequence();
         mascotShieldLastsFifteenPlayingSeconds();
         shieldBlocksThenAllowsTheNextHit();
+        phaseThreeAttackReachesEloBeforeImpact();
         fragmentsReactToEloProgress();
         System.out.println("CampaignProgressCheck: OK");
     }
@@ -160,6 +161,29 @@ public final class CampaignProgressCheck {
         require(fragments.collected() == 3, "ELO recolhe objetos do cenario");
         fragments.update(1f, 1f);
         require(fragments.collected() == 3, "fragmentos nao duplicam");
+    }
+
+    private static void phaseThreeAttackReachesEloBeforeImpact() {
+        CombatVisuals visuals = new CombatVisuals();
+        visuals.launchHit();
+        visuals.update(0.30f);
+        require(visuals.attackFlying() && !visuals.hitActive() &&
+                visuals.attackFlightProgress() > 0.5f,
+                "disparo percorre a cena antes de atingir ELO");
+        visuals.update(0.25f);
+        require(!visuals.attackFlying() && visuals.hitActive() &&
+                visuals.impactBeamStrength() > 0f,
+                "impacto e raio aparecem juntos no destino");
+        visuals.update(0.30f);
+        require(visuals.impactBeamStrength() == 0f,
+                "raio desaparece depois do impacto");
+
+        visuals.launchBlocked();
+        require(visuals.attackBlocked() && visuals.attackFlying(),
+                "escudo intercepta o proximo disparo");
+        visuals.update(0.55f);
+        require(visuals.blockedActive() && !visuals.hitActive(),
+                "bloqueio aparece quando o disparo chega ao escudo");
     }
 
     private static void require(boolean condition, String description) {
