@@ -25,8 +25,12 @@ final class PhaseThreeProgress {
     private long lastTurnMillis = -1;
     private long lastIntervalMillis = -1;
 
-    /** A pedalada na chave de rota e uma acao separada da sequencia de precisao. */
+    /** O gesto dirigido na chave de rota e separado da sequencia de precisao. */
     int acceptTurns(int turns, long lastCycleMillis) {
+        return acceptTurns(turns, lastCycleMillis, 0);
+    }
+
+    int acceptTurns(int turns, long lastCycleMillis, int direction) {
         if (paused || isComplete() || turns <= 0) return 0;
         boolean steady = false;
         if (turns == 1 && lastTurnMillis >= 0 && lastCycleMillis > lastTurnMillis) {
@@ -53,7 +57,7 @@ final class PhaseThreeProgress {
 
             switch (step) {
                 case PRECISION:
-                    // Um lote de voltas nao informa o instante de cada movimento.
+                    // Um lote de giros nao informa o instante de cada movimento.
                     if (individual && ++precisionTurns >= PRECISION_TURNS) {
                         step = Step.SWITCH;
                         switchTurns = 0;
@@ -62,7 +66,8 @@ final class PhaseThreeProgress {
                     }
                     break;
                 case SWITCH:
-                    if (individual && ++switchTurns >= SWITCH_TURNS) {
+                    if (individual && direction == requiredDirection() &&
+                            ++switchTurns >= SWITCH_TURNS) {
                         step = Step.RHYTHM;
                         lastIntervalMillis = -1;
                     }
@@ -125,9 +130,10 @@ final class PhaseThreeProgress {
     boolean isComplete() { return shields == SHIELD_COUNT; }
     float movingSeconds() { return movingSeconds; }
 
-    /** A rota muda apenas quando o jogador aciona a chave com outra pedalada. */
+    /** A rota muda apenas quando o jogador gira o antebraco para o lado pedido. */
     boolean routeChanged() { return !isComplete() &&
             (step == Step.RHYTHM || step == Step.STABILITY); }
+    int requiredDirection() { return shields % 2 == 0 ? -1 : 1; }
     int activeRoute() { return (shields + (routeChanged() ? 1 : 0)) % 2; }
     int restoredConduits() { return shields * 2 + (routeChanged() ? 1 : 0); }
     boolean interferenceActive() {
