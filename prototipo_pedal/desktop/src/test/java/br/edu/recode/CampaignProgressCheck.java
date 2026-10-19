@@ -37,14 +37,14 @@ public final class CampaignProgressCheck {
         require(run.integrity() == 3, "ritmo regular preserva integridade");
         run.advance();
 
-        for (int turn = 25; turn <= 51; turn++) {
+        for (int turn = 25; turn <= 54; turn++) {
             run.third().acceptTurns(1, turn * 1000L);
             run.third().update(0.5f, true);
             run.observe();
         }
         require(run.status() == CampaignProgress.Status.VICTORY, "vitoria apos a fase 3");
-        require(run.phase() == 3 && run.totalTurns() == 71, "total preservado");
-        require(run.turns(1) == 20 && run.turns(2) == 24 && run.turns(3) == 27,
+        require(run.phase() == 3 && run.totalTurns() == 74, "total preservado");
+        require(run.turns(1) == 20 && run.turns(2) == 24 && run.turns(3) == 30,
                 "resultados de cada fase preservados");
         require(run.objectives(1) == 3 && run.objectives(2) == 3 && run.objectives(3) == 3,
                 "objetivos preservados");
@@ -100,16 +100,26 @@ public final class CampaignProgressCheck {
         progress.acceptTurns(3, 1000);
         require(progress.precisionTurns() == 0, "lote sem instantes nao prova precisao");
         for (int turn = 1; turn <= 3; turn++) progress.acceptTurns(1, turn * 1000L + 1000);
-        require(progress.step() == PhaseThreeProgress.Step.RHYTHM, "precisao primeiro");
-        for (int turn = 4; turn <= 6; turn++) progress.acceptTurns(1, turn * 1000L + 1000);
-        require(progress.step() == PhaseThreeProgress.Step.STABILITY, "ritmo depois");
-        progress.acceptTurns(1, 8000);
-        progress.acceptTurns(1, 8500);
-        require(progress.stabilityStreak() == 0, "irregularidade reinicia estabilidade");
-        progress.acceptTurns(1, 9000);
-        progress.acceptTurns(1, 9500);
+        require(progress.step() == PhaseThreeProgress.Step.SWITCH &&
+                progress.activeRoute() == 0 && progress.restoredConduits() == 0,
+                "precisao leva a chave sem trocar de linha");
+        progress.acceptTurns(2, 5000);
+        require(progress.step() == PhaseThreeProgress.Step.SWITCH &&
+                progress.activeRoute() == 0, "voltas em lote nao acionam a chave");
+        progress.acceptTurns(1, 6000);
+        require(progress.step() == PhaseThreeProgress.Step.RHYTHM &&
+                progress.activeRoute() == 1 && progress.restoredConduits() == 1,
+                "pedalada individual aciona o desvio para a linha de baixo");
+        for (int turn = 7; turn <= 9; turn++) progress.acceptTurns(1, turn * 1000L);
+        require(progress.step() == PhaseThreeProgress.Step.STABILITY, "ritmo depois do desvio");
         progress.acceptTurns(1, 10000);
-        require(progress.shields() == 1 && progress.step() == PhaseThreeProgress.Step.PRECISION,
+        progress.acceptTurns(1, 10500);
+        require(progress.stabilityStreak() == 0, "irregularidade reinicia estabilidade");
+        progress.acceptTurns(1, 11000);
+        progress.acceptTurns(1, 11500);
+        progress.acceptTurns(1, 12000);
+        require(progress.shields() == 1 && progress.step() == PhaseThreeProgress.Step.PRECISION &&
+                progress.activeRoute() == 1 && progress.restoredConduits() == 2,
                 "estabilidade conclui a sequencia e inicia proximo escudo");
     }
 
