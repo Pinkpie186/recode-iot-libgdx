@@ -193,7 +193,7 @@ final class ReCodePedalGame extends ApplicationAdapter {
         font.draw(batch, "ReCode  |  Circuitos Basicos", left, height - 38);
         font.getData().setScale(1.15f);
         font.setColor(MUTED_TEXT);
-        font.draw(batch, simulated ? "SIMULACAO DE DESENVOLVIMENTO - sem dispositivo IoT"
+        font.draw(batch, simulated ? "Modo sem pedal conectado"
                 : "Pedale para conduzir ELO e reparar os circuitos", left, height - 72);
 
         font.setColor(Color.WHITE);
