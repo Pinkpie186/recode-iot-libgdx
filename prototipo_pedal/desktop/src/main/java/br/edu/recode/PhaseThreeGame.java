@@ -139,7 +139,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
         float bossY = height * 0.47f;
         float bossSize = Math.min(width * 0.72f, height * (1.10f + journey * 0.08f));
         float mouthX = bossX;
-        float mouthY = bossY - bossSize * 0.04f;
+        float mouthY = bossY - bossSize * 0.08f;
         fragments.update(journey, delta);
 
         Gdx.gl.glClearColor(BACKGROUND.r, BACKGROUND.g, BACKGROUND.b, 1f);
