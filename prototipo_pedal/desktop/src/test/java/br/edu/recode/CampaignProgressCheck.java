@@ -9,6 +9,7 @@ public final class CampaignProgressCheck {
         irregularTurnsCanCauseDefeatWithoutTimeLimit();
         phaseTwoRequiresContinuousRhythm();
         phaseThreeRequiresOrderedSequence();
+        forearmFramesRequireSensorProtocol();
         mascotShieldLastsFifteenPlayingSeconds();
         shieldBlocksThenAllowsTheNextHit();
         phaseThreeAttackReachesEloBeforeImpact();
@@ -38,7 +39,9 @@ public final class CampaignProgressCheck {
         run.advance();
 
         for (int turn = 25; turn <= 54; turn++) {
-            run.third().acceptTurns(1, turn * 1000L);
+            int direction = run.third().step() == PhaseThreeProgress.Step.SWITCH
+                    ? run.third().requiredDirection() : turn % 2 == 0 ? 1 : -1;
+            run.third().acceptTurns(1, turn * 1000L, direction);
             run.third().update(0.5f, true);
             run.observe();
         }
@@ -99,28 +102,52 @@ public final class CampaignProgressCheck {
         PhaseThreeProgress progress = new PhaseThreeProgress();
         progress.acceptTurns(3, 1000);
         require(progress.precisionTurns() == 0, "lote sem instantes nao prova precisao");
-        for (int turn = 1; turn <= 3; turn++) progress.acceptTurns(1, turn * 1000L + 1000);
+        for (int turn = 1; turn <= 3; turn++)
+            progress.acceptTurns(1, turn * 1000L + 1000, turn % 2 == 0 ? 1 : -1);
         require(progress.step() == PhaseThreeProgress.Step.SWITCH &&
                 progress.activeRoute() == 0 && progress.restoredConduits() == 0,
                 "precisao leva a chave sem trocar de linha");
-        progress.acceptTurns(2, 5000);
+        progress.acceptTurns(2, 5000, -1);
         require(progress.step() == PhaseThreeProgress.Step.SWITCH &&
-                progress.activeRoute() == 0, "voltas em lote nao acionam a chave");
-        progress.acceptTurns(1, 6000);
+                progress.activeRoute() == 0, "giros em lote nao acionam a chave");
+        progress.acceptTurns(1, 6000, 1);
+        require(progress.step() == PhaseThreeProgress.Step.SWITCH &&
+                progress.activeRoute() == 0, "giro para cima nao leva a linha inferior");
+        progress.acceptTurns(1, 7000, -1);
         require(progress.step() == PhaseThreeProgress.Step.RHYTHM &&
                 progress.activeRoute() == 1 && progress.restoredConduits() == 1,
-                "pedalada individual aciona o desvio para a linha de baixo");
-        for (int turn = 7; turn <= 9; turn++) progress.acceptTurns(1, turn * 1000L);
+                "giro para baixo aciona o desvio para a linha inferior");
+        for (int turn = 8; turn <= 10; turn++) progress.acceptTurns(1, turn * 1000L, 1);
         require(progress.step() == PhaseThreeProgress.Step.STABILITY, "ritmo depois do desvio");
-        progress.acceptTurns(1, 10000);
-        progress.acceptTurns(1, 10500);
+        progress.acceptTurns(1, 11000, -1);
+        progress.acceptTurns(1, 11500, 1);
         require(progress.stabilityStreak() == 0, "irregularidade reinicia estabilidade");
-        progress.acceptTurns(1, 11000);
-        progress.acceptTurns(1, 11500);
-        progress.acceptTurns(1, 12000);
+        progress.acceptTurns(1, 12000, -1);
+        progress.acceptTurns(1, 12500, 1);
+        progress.acceptTurns(1, 13000, -1);
         require(progress.shields() == 1 && progress.step() == PhaseThreeProgress.Step.PRECISION &&
                 progress.activeRoute() == 1 && progress.restoredConduits() == 2,
                 "estabilidade conclui a sequencia e inicia proximo escudo");
+        for (int turn = 14; turn <= 16; turn++)
+            progress.acceptTurns(1, turn * 1000L, -1);
+        require(progress.step() == PhaseThreeProgress.Step.SWITCH &&
+                progress.requiredDirection() == 1 && progress.activeRoute() == 1,
+                "segundo desvio pede giro para cima");
+        progress.acceptTurns(1, 17000, 1);
+        require(progress.activeRoute() == 0, "giro para cima leva a linha superior");
+    }
+
+    private static void forearmFramesRequireSensorProtocol() {
+        String frame = "{\"v\":2,\"seq\":1,\"ms\":1000,\"mode\":\"forearm\"," +
+                "\"movement\":1,\"lastMovementMs\":900,\"direction\":-1,\"state\":\"ok\"}";
+        require(PedalFrame.parse(frame).direction == -1, "direcao vem do sensor");
+        boolean rejected = false;
+        try {
+            PedalFrame.parse(frame.replace("\"forearm\"", "\"pedal\""));
+        } catch (IllegalArgumentException expected) {
+            rejected = true;
+        }
+        require(rejected, "firmware antigo de pedal nao pode controlar o jogo");
     }
 
     private static void mascotShieldLastsFifteenPlayingSeconds() {
