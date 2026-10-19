@@ -7,24 +7,52 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 final class CombatVisuals {
     private static final Color HIT = new Color(1f, 0.21f, 0.47f, 1f);
     private static final Color GUARD = new Color(0.34f, 0.96f, 1f, 1f);
+    private static final float ATTACK_FLIGHT_SECONDS = 0.55f;
+    private static final float IMPACT_BEAM_SECONDS = 0.30f;
     private float hitSeconds;
     private float blockedSeconds;
     private float shieldStartSeconds;
+    private float attackFlightSeconds;
+    private float impactBeamSeconds;
+    private boolean attackBlocked;
 
     void hit() { hitSeconds = 0.9f; }
     void blocked() { blockedSeconds = 0.75f; }
     void shieldStarted() { shieldStartSeconds = 0.8f; }
 
+    void launchHit() { launch(false); }
+    void launchBlocked() { launch(true); }
+
+    private void launch(boolean blocked) {
+        attackBlocked = blocked;
+        attackFlightSeconds = ATTACK_FLIGHT_SECONDS;
+        impactBeamSeconds = 0f;
+        hitSeconds = blockedSeconds = 0f;
+    }
+
     void update(float delta) {
         hitSeconds = Math.max(0f, hitSeconds - delta);
         blockedSeconds = Math.max(0f, blockedSeconds - delta);
         shieldStartSeconds = Math.max(0f, shieldStartSeconds - delta);
+        impactBeamSeconds = Math.max(0f, impactBeamSeconds - delta);
+        if (attackFlightSeconds > 0f) {
+            attackFlightSeconds = Math.max(0f, attackFlightSeconds - delta);
+            if (attackFlightSeconds == 0f) {
+                impactBeamSeconds = IMPACT_BEAM_SECONDS;
+                if (attackBlocked) blocked();
+                else hit();
+            }
+        }
     }
 
     boolean hitActive() { return hitSeconds > 0f; }
     float hitStrength() { return hitSeconds / 0.9f; }
     boolean blockedActive() { return blockedSeconds > 0f; }
     float blockedStrength() { return blockedSeconds / 0.75f; }
+    boolean attackFlying() { return attackFlightSeconds > 0f; }
+    float attackFlightProgress() { return 1f - attackFlightSeconds / ATTACK_FLIGHT_SECONDS; }
+    boolean attackBlocked() { return attackBlocked; }
+    float impactBeamStrength() { return impactBeamSeconds / IMPACT_BEAM_SECONDS; }
     float hitOffset(float time) { return hitActive() ? (float) Math.sin(time * 72f) * 9f * hitStrength() : 0f; }
 
     void draw(ShapeRenderer shapes, float x, float y, float time, MascotShield shield) {
