@@ -16,8 +16,9 @@ final class PedalCounter {
             return 0;
         }
 
-        // O ESP32 pode reiniciar quando a porta serial e aberta.
-        if (frame.deviceMillis < lastDeviceMillis && frame.rotations <= lastRotations) {
+        // O ESP32 pode reiniciar; o MPU6050 pode ser recalibrado sem reiniciar o ESP32.
+        if ((frame.deviceMillis < lastDeviceMillis && frame.rotations <= lastRotations) ||
+                frame.rotations < lastRotations) {
             baseline(frame, receivedNanos);
             return 0;
         }
