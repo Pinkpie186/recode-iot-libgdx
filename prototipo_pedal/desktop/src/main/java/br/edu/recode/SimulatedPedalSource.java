@@ -2,7 +2,7 @@ package br.edu.recode;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-/** Apenas para desenvolvimento: gera o mesmo JSON do ESP32 sem ler um pedal. */
+/** Gera gestos alternados para jogar sem o MPU6050 conectado. */
 final class SimulatedPedalSource implements PedalSource {
     private final ConcurrentLinkedQueue<PedalFrame> frames = new ConcurrentLinkedQueue<>();
     private volatile boolean running;
@@ -11,7 +11,7 @@ final class SimulatedPedalSource implements PedalSource {
 
     @Override public void start() {
         running = true;
-        generator = new Thread(this::generateLoop, "recode-pedal-simulator");
+        generator = new Thread(this::generateLoop, "recode-forearm-simulator");
         generator.setDaemon(true);
         generator.start();
     }
@@ -26,12 +26,14 @@ final class SimulatedPedalSource implements PedalSource {
         while (running) {
             long now = System.nanoTime();
             long elapsedMs = (now - started) / 1_000_000L;
-            long rotations = elapsedMs / 1_000L; // Uma volta por segundo: 60 RPM.
+            long rotations = elapsedMs / 1_000L; // Um giro detectado por segundo.
             long lastCycleMs = rotations * 1_000L;
-            String line = "{\"v\":1,\"seq\":" + sequence++
+            int direction = rotations == 0 ? 0 : rotations % 2 == 1 ? -1 : 1;
+            String line = "{\"v\":2,\"seq\":" + sequence++
                     + ",\"ms\":" + elapsedMs
-                    + ",\"mode\":\"pedal\",\"cycle\":" + rotations
-                    + ",\"lastCycleMs\":" + lastCycleMs
+                    + ",\"mode\":\"forearm\",\"movement\":" + rotations
+                    + ",\"lastMovementMs\":" + lastCycleMs
+                    + ",\"direction\":" + direction
                     + ",\"state\":\"ok\"}";
             frames.add(PedalFrame.parse(line));
             lastFrameNanos = now;
