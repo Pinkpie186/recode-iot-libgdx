@@ -110,7 +110,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
                 now - source.lastFrameNanos() <= 2_000_000_000L;
         if (!campaignLocked) progress.update(delta, connected && counter.rpm(now) > 0);
         if (manageSource) shield.update(delta, !progress.isPaused() && !progress.isComplete());
-        combat.update(delta);
+        if (!progress.isPaused()) combat.update(delta);
         animationTime += delta;
         energyPulse = Math.max(0f, energyPulse - delta * 2.4f);
         shieldPulse = Math.max(0f, shieldPulse - delta * 1.15f);
@@ -134,10 +134,10 @@ final class PhaseThreeGame extends ApplicationAdapter {
         float eloX = left + segment * fraction;
         float eloY = progress.activeRoute() == 0 ? upperY : lowerY;
         float journey = Math.min(1f, fraction / PhaseThreeProgress.SHIELD_COUNT);
-        // A criatura ocupa o horizonte; o deslocamento discreto cria profundidade.
-        float bossX = width * (0.56f - journey * 0.04f);
-        float bossY = height * 0.47f;
-        float bossSize = Math.min(width * 0.72f, height * (1.10f + journey * 0.08f));
+        // No Zero acompanha a arquitetura distante; os condutos ficam em primeiro plano.
+        float bossX = background.landmarkX(width, height, journey, 0.50f);
+        float bossY = height * 0.50f + (float) Math.sin(animationTime * 0.65f) * 5f;
+        float bossSize = Math.min(width * 0.36f, height * 0.55f);
         float mouthX = bossX;
         float mouthY = bossY - bossSize * 0.08f;
         fragments.update(journey, delta);
@@ -153,14 +153,20 @@ final class PhaseThreeGame extends ApplicationAdapter {
         if (!progress.isComplete()) drawBossBacklight(bossX, bossY, bossSize);
         batch.begin();
         if (!progress.isComplete()) {
-            float presence = 0.96f - progress.shields() * 0.08f;
-            batch.setColor(1f, 1f, 1f, presence);
+            float presence = 0.86f - progress.shields() * 0.07f;
+            batch.setColor(0.93f, 0.88f, 1f, presence);
             int enemyRow = shieldPulse > 0 ? 3 :
-                    combat.hitActive() || combat.blockedActive() || progress.interferenceActive()
+                    combat.attackFlying() || combat.hitActive() ||
+                    combat.blockedActive() || progress.interferenceActive()
                             ? 1 : 0;
             noZero.draw(batch, enemyRow, animationTime, bossX, bossY, bossSize);
             batch.setColor(Color.WHITE);
         }
+        batch.end();
+
+        // Plataformas e suportes da arena passam a frente do chefe.
+        batch.begin();
+        background.drawForeground(batch, width, height, journey, animationTime, 0.41f);
         batch.end();
 
         StageDecor.draw(shapes, width, height, journey, animationTime, energyPulse, 3);
@@ -168,7 +174,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
         drawWorld(width, height, left, right, upperY, lowerY, segment,
                 eloX, eloY, mouthX, mouthY);
         drawSpritesAndText(width, height, left, right, upperY, lowerY, segment,
-                eloX, eloY, connected, now);
+                eloX, eloY, bossX, connected, now);
         Gdx.gl.glDisable(GL20.GL_BLEND);
     }
 
@@ -231,10 +237,9 @@ final class PhaseThreeGame extends ApplicationAdapter {
             shapes.rect(eloX - 24, lowerY, 48, upperY - lowerY);
         }
         if (progress.interferenceActive() && !progress.isPaused()) {
-            float x = left + segment * (progress.shields() + 1);
             shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b, 0.32f);
-            shapes.rectLine(mouthX, mouthY, x + 20, eloY, 5f);
-            shapes.rect(x - 23, eloY + 31, 46, 5);
+            shapes.rectLine(mouthX, mouthY, eloX, eloY + 12f, 2f);
+            shapes.circle(eloX, eloY + 12f, 5f);
         }
 
         if (progress.isPaused() || progress.isComplete()) {
@@ -247,12 +252,17 @@ final class PhaseThreeGame extends ApplicationAdapter {
     }
 
     private void drawBackgroundAttack(float mouthX, float mouthY, float eloX, float eloY) {
-        float strength = combat.hitActive() ? combat.hitStrength() :
-                combat.blockedActive() ? combat.blockedStrength() : 0f;
+        boolean flying = combat.attackFlying();
+        float strength = flying ? 1f : combat.impactBeamStrength();
         if (strength <= 0f) return;
-        float travel = Math.min(1f, (1f - strength) * 2.7f);
-        float tipX = mouthX + (eloX - mouthX) * travel;
-        float tipY = mouthY + (eloY - mouthY) * travel;
+        float travel = flying ? combat.attackFlightProgress() : 1f;
+        float dx = eloX - mouthX;
+        float dy = eloY - mouthY;
+        float distance = (float) Math.sqrt(dx * dx + dy * dy);
+        float reach = combat.attackBlocked() && distance > 0f
+                ? Math.max(0f, 1f - 55f / distance) : 1f;
+        float tipX = mouthX + dx * reach * travel;
+        float tipY = mouthY + dy * reach * travel;
         shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b, strength * 0.30f);
         shapes.rectLine(mouthX, mouthY, tipX, tipY, 7f + travel * 9f);
         shapes.setColor(1f, 0.68f, 0.96f, strength * 0.85f);
@@ -262,7 +272,8 @@ final class PhaseThreeGame extends ApplicationAdapter {
 
     private void drawSpritesAndText(int width, int height, float left, float right,
                                     float upperY, float lowerY, float segment,
-                                    float eloX, float eloY, boolean connected, long now) {
+                                    float eloX, float eloY, float bossX,
+                                    boolean connected, long now) {
         String status = connected ? simulated ? "Dados simulados" : "ESP32 conectado" :
                 source.error().isEmpty() ? simulated ? "Iniciando simulacao" :
                         "Aguardando dados do ESP32" : source.error();
@@ -291,7 +302,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
                 right - 170, height - 130);
         if (!progress.isPaused() && !progress.isComplete()) {
             font.setColor(CORRUPTION);
-            font.draw(batch, "NO ZERO", width * 0.77f, lowerY - 62);
+            font.draw(batch, "NO ZERO", bossX - 43f, lowerY - 62);
         }
 
         font.setColor(MUTED);
