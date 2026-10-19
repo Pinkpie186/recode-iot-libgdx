@@ -36,7 +36,7 @@ try {
     Write-Host 'Preparando ReCode...'
     & javac -encoding UTF-8 -cp $classpath -d $classes $sources
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    Write-Host 'Teste no teclado: Enter para jogar, F para pedalar, Espaco para pausar.'
+    Write-Host 'Modo teclado: Enter para jogar, F alterna o giro, setas escolhem o lado, Espaco pausa.'
     & java '-Drecode.keyboard=true' '-Drecode.phase=campaign' -cp $classpath br.edu.recode.DesktopLauncher
     exit $LASTEXITCODE
 } finally {
