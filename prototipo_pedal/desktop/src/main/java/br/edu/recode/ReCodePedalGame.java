@@ -9,7 +9,7 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 
-/** Circuitos Basicos: cada volta valida energiza a trilha e repara os nos. */
+/** Circuitos Basicos: cada giro valido energiza a trilha e repara os nos. */
 final class ReCodePedalGame extends ApplicationAdapter {
     private static final Color BACKGROUND = new Color(0.035f, 0.055f, 0.11f, 1f);
     private static final Color PANEL = new Color(0.075f, 0.105f, 0.18f, 1f);
@@ -71,7 +71,7 @@ final class ReCodePedalGame extends ApplicationAdapter {
 
     @Override public void render() {
         long now = System.nanoTime();
-        // Atalhos de desenvolvimento; o objetivo da fase continua ligado ao pedal.
+        // Atalhos de desenvolvimento; o objetivo continua ligado ao sensor.
         if (manageSource && !campaignLocked && (Gdx.input.isKeyJustPressed(Input.Keys.P) ||
                 Gdx.input.isKeyJustPressed(Input.Keys.SPACE))) progress.togglePause();
         if (manageSource && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
@@ -128,13 +128,13 @@ final class ReCodePedalGame extends ApplicationAdapter {
         shapes.rect(0, height - 105, width, 105);
         shapes.rect(0, 0, width, 105);
 
-        // A trilha apagada torna-se energizada conforme as voltas chegam.
+        // A trilha apagada torna-se energizada conforme os giros chegam.
         shapes.setColor(TRACK);
         shapes.rect(left, y - 9, right - left, 18);
         shapes.setColor(ENERGY);
         shapes.rect(left, y - 5, Math.max(0, eloX - left), 10);
 
-        // Tres bloqueios visuais sao reparados em 5, 10 e 15 voltas.
+        // Tres bloqueios visuais sao reparados em 5, 10 e 15 giros.
         for (int i = 0; i < PhaseOneProgress.REPAIR_AT.length; i++) {
             float x = left + (right - left) * PhaseOneProgress.REPAIR_AT[i] / PhaseOneProgress.TARGET_ROTATIONS;
             boolean repaired = progress.rotations() >= PhaseOneProgress.REPAIR_AT[i];
@@ -155,7 +155,7 @@ final class ReCodePedalGame extends ApplicationAdapter {
         shapes.setColor(BACKGROUND);
         shapes.circle(right, y, 15);
 
-        // Um halo mostra visualmente o recebimento de uma volta.
+        // Um halo mostra visualmente o recebimento de um giro.
         shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b, 0.20f + energyPulse * 0.20f);
         shapes.circle(eloX, y, 31 + energyPulse * 10);
 
@@ -193,11 +193,11 @@ final class ReCodePedalGame extends ApplicationAdapter {
         font.draw(batch, "ReCode  |  Circuitos Basicos", left, height - 38);
         font.getData().setScale(1.15f);
         font.setColor(MUTED_TEXT);
-        font.draw(batch, simulated ? "Modo sem pedal conectado"
-                : "Pedale para conduzir ELO e reparar os circuitos", left, height - 72);
+        font.draw(batch, simulated ? "Modo sem sensor conectado"
+                : "Gire o antebraco para conduzir ELO", left, height - 72);
 
         font.setColor(Color.WHITE);
-        font.draw(batch, "Voltas: " + progress.rotations() + " / " + PhaseOneProgress.TARGET_ROTATIONS, left, height - 130);
+        font.draw(batch, "Giros: " + progress.rotations() + " / " + PhaseOneProgress.TARGET_ROTATIONS, left, height - 130);
         font.draw(batch, "Circuitos: " + progress.repairedCircuits() + " / 3", right - 195, height - 130);
         for (int i = 0; i < PhaseOneProgress.REPAIR_AT.length; i++) {
             float x = left + (right - left) * PhaseOneProgress.REPAIR_AT[i] / PhaseOneProgress.TARGET_ROTATIONS;
@@ -210,9 +210,9 @@ final class ReCodePedalGame extends ApplicationAdapter {
         double rpm = connected ? counter.rpm(now) : 0;
         if (!progress.isComplete()) {
             String rhythm = rpm <= 0 ? "Aguardando movimento" : "Movimento detectado";
-            font.draw(batch, rhythm + "  |  " + Math.round(rpm) + " RPM", right - 300, 70);
-            font.draw(batch, "Proximo objetivo: " + progress.nextRepairAt() + " voltas", left, 42);
-            font.draw(batch, manageSource ? "P/Espaco: pausa   R: reiniciar (desenvolvimento)"
+            font.draw(batch, rhythm + "  |  " + Math.round(rpm) + " giros/min", right - 300, 70);
+            font.draw(batch, "Proximo objetivo: " + progress.nextRepairAt() + " giros", left, 42);
+            font.draw(batch, manageSource ? "P/Espaco: pausa   R: reiniciar"
                     : "Espaco: opcoes", right - 390, 42);
         }
 
@@ -222,7 +222,7 @@ final class ReCodePedalGame extends ApplicationAdapter {
             font.draw(batch, "Fase pausada", width * 0.37f, height * 0.63f);
             font.getData().setScale(1.2f);
             font.setColor(Color.WHITE);
-            font.draw(batch, "Voltas durante a pausa nao contam.", width * 0.32f, height * 0.52f);
+            font.draw(batch, "Giros durante a pausa nao contam.", width * 0.32f, height * 0.52f);
             font.draw(batch, "P ou Espaco para continuar", width * 0.35f, height * 0.42f);
         } else if (progress.isComplete()) {
             font.getData().setScale(1.9f);
@@ -232,7 +232,7 @@ final class ReCodePedalGame extends ApplicationAdapter {
             font.setColor(Color.WHITE);
             font.draw(batch, "ELO recuperou a energia desta area.", width * 0.29f, height * 0.54f);
             font.setColor(MUTED_TEXT);
-            font.draw(batch, "3 circuitos  |  " + progress.rotations() + " voltas  |  " +
+            font.draw(batch, "3 circuitos  |  " + progress.rotations() + " giros  |  " +
                     Math.round(progress.activeSeconds()) + " s com movimento", width * 0.29f, height * 0.45f);
             font.draw(batch, manageSource ? "R para jogar novamente"
                     : "Proxima fase em instantes", width * 0.38f, height * 0.36f);
