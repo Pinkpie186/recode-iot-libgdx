@@ -1,6 +1,6 @@
 package br.edu.recode;
 
-/** Protecao ludica carregada por uma sequencia de pedaladas regulares. */
+/** Protecao ludica carregada por uma sequencia de giros regulares. */
 final class MascotShield {
     static final int REQUIRED_PAIRS = 3;
     static final float DURATION_SECONDS = 15f;
