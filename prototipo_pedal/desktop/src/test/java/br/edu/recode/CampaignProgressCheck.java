@@ -10,6 +10,7 @@ public final class CampaignProgressCheck {
         phaseTwoRequiresContinuousRhythm();
         phaseThreeRequiresOrderedSequence();
         forearmFramesRequireSensorProtocol();
+        sensorRecalibrationStartsFromNewBaseline();
         mascotShieldLastsFifteenPlayingSeconds();
         shieldBlocksThenAllowsTheNextHit();
         phaseThreeAttackReachesEloBeforeImpact();
@@ -148,6 +149,25 @@ public final class CampaignProgressCheck {
             rejected = true;
         }
         require(rejected, "firmware antigo de pedal nao pode controlar o jogo");
+    }
+
+    private static void sensorRecalibrationStartsFromNewBaseline() {
+        PedalCounter counter = new PedalCounter();
+        require(counter.accept(frame(1, 1000, 4, 900), 1_000_000_000L) == 0,
+                "primeiro quadro estabelece a base");
+        require(counter.accept(frame(2, 1400, 5, 1300), 1_400_000_000L) == 1,
+                "giro anterior contado");
+        require(counter.accept(frame(3, 1600, 0, 0), 1_600_000_000L) == 0,
+                "recalibracao nao cria giro fantasma");
+        require(counter.accept(frame(4, 2000, 1, 1950), 2_000_000_000L) == 1,
+                "jogo volta a contar apos recalibracao");
+    }
+
+    private static PedalFrame frame(long sequence, long ms, long movement, long lastMovementMs) {
+        return PedalFrame.parse("{\"v\":2,\"seq\":" + sequence + ",\"ms\":" + ms +
+                ",\"mode\":\"forearm\",\"movement\":" + movement +
+                ",\"lastMovementMs\":" + lastMovementMs +
+                ",\"direction\":1,\"state\":\"ok\"}");
     }
 
     private static void mascotShieldLastsFifteenPlayingSeconds() {
