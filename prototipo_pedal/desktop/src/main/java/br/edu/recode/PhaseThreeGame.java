@@ -38,6 +38,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
     private float energyPulse;
     private float shieldPulse;
     private float routePulse;
+    private float displayRouteY = Float.NaN;
     private boolean campaignLocked;
 
     void setCampaignLocked(boolean locked) { campaignLocked = locked; }
@@ -91,6 +92,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
         if (manageSource && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             progress.restart();
             energyPulse = shieldPulse = routePulse = 0f;
+            displayRouteY = Float.NaN;
         }
 
         PedalFrame frame;
@@ -126,13 +128,19 @@ final class PhaseThreeGame extends ApplicationAdapter {
         float segment = (right - left) / PhaseThreeProgress.SHIELD_COUNT;
         float stepFraction = progress.step() == PhaseThreeProgress.Step.PRECISION
                 ? progress.precisionTurns() / (float) PhaseThreeProgress.PRECISION_TURNS / 3f
+                : progress.step() == PhaseThreeProgress.Step.SWITCH
+                ? 1f / 3f
                 : progress.step() == PhaseThreeProgress.Step.RHYTHM
                 ? (1f + progress.rhythmStreak() / (float) PhaseThreeProgress.RHYTHM_PAIRS) / 3f
                 : (2f + progress.stabilityStreak() /
                 (float) PhaseThreeProgress.STABILITY_PAIRS) / 3f;
         float fraction = progress.shields() + Math.min(1f, stepFraction);
         float eloX = left + segment * fraction;
-        float eloY = progress.activeRoute() == 0 ? upperY : lowerY;
+        float targetRouteY = progress.activeRoute() == 0 ? upperY : lowerY;
+        if (Float.isNaN(displayRouteY)) displayRouteY = targetRouteY;
+        displayRouteY += (targetRouteY - displayRouteY) * Math.min(1f, delta * 7f);
+        if (Math.abs(displayRouteY - targetRouteY) < 0.5f) displayRouteY = targetRouteY;
+        float eloY = displayRouteY;
         float journey = Math.min(1f, fraction / PhaseThreeProgress.SHIELD_COUNT);
         // No Zero acompanha a arquitetura distante; os condutos ficam em primeiro plano.
         float bossX = background.landmarkX(width, height, journey, 0.50f);
@@ -207,7 +215,10 @@ final class PhaseThreeGame extends ApplicationAdapter {
         shapes.rect(left, upperY - 6, right - left, 12);
         shapes.rect(left, lowerY - 6, right - left, 12);
         shapes.setColor(ENERGY);
-        shapes.rect(left, eloY - 4, Math.max(0f, eloX - left), 8);
+        shapes.rect(left, (progress.activeRoute() == 0 ? upperY : lowerY) - 4,
+                Math.max(0f, eloX - left), 8);
+
+        if (!progress.isComplete()) drawRouteSwitch(left, segment, upperY, lowerY);
 
         for (int i = 0; i < PhaseThreeProgress.SHIELD_COUNT; i++) {
             float x = left + segment * (i + 1);
@@ -251,6 +262,23 @@ final class PhaseThreeGame extends ApplicationAdapter {
         shapes.end();
     }
 
+    private void drawRouteSwitch(float left, float segment, float upperY, float lowerY) {
+        float x = left + segment * (progress.shields() + 1f / 3f);
+        boolean waiting = progress.step() == PhaseThreeProgress.Step.SWITCH;
+        float pulse = 0.5f + 0.5f * (float) Math.sin(animationTime * 5f);
+        shapes.setColor(waiting ? ENERGY : TRACK);
+        shapes.rectLine(x, upperY, x, lowerY, waiting ? 9f : 5f);
+        shapes.circle(x, upperY, waiting ? 12f + pulse * 4f : 8f);
+        shapes.circle(x, lowerY, waiting ? 12f + pulse * 4f : 8f);
+        float blockedY = progress.shields() % 2 == 0 ? upperY : lowerY;
+        shapes.setColor(CORRUPTION);
+        shapes.rectLine(x + 18f, blockedY - 15f, x + 18f, blockedY + 15f, 5f);
+        if (waiting) {
+            shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b, 0.18f + pulse * 0.25f);
+            shapes.circle(x, blockedY, 23f + pulse * 8f);
+        }
+    }
+
     private void drawBackgroundAttack(float mouthX, float mouthY, float eloX, float eloY) {
         boolean flying = combat.attackFlying();
         float strength = flying ? 1f : combat.impactBeamStrength();
@@ -292,7 +320,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
         font.draw(batch, "ReCode  |  Sistema Central", left, height - 37);
         font.getData().setScale(1.1f);
         font.setColor(MUTED);
-        font.draw(batch, simulated ? "SIMULACAO DE DESENVOLVIMENTO - sem dispositivo IoT" :
+        font.draw(batch, simulated ? "Modo sem pedal conectado" :
                 "Restaure os condutos e estabilize o nucleo", left, height - 71);
         if (manageSource) font.draw(batch, "P: pausa   R: reiniciar", width - 235, height - 71);
         else font.draw(batch, "Espaco: opcoes", width - 210, 25);
@@ -312,14 +340,17 @@ final class PhaseThreeGame extends ApplicationAdapter {
         if (!progress.isComplete()) {
             String sequence = progress.step() == PhaseThreeProgress.Step.PRECISION
                     ? "Precisao: " + progress.precisionTurns() + "/3 voltas individuais"
+                    : progress.step() == PhaseThreeProgress.Step.SWITCH
+                    ? "Chave de rota: pedale 1 volta para acionar o desvio"
                     : progress.step() == PhaseThreeProgress.Step.RHYTHM
                     ? "Ritmo: " + progress.rhythmStreak() + "/2 pares seguidos"
                     : "Estabilidade: " + progress.stabilityStreak() + "/3 pares seguidos";
             font.draw(batch, "Escudo " + (progress.shields() + 1) + "/3  |  " + sequence,
                     left, 49);
             font.setColor(progress.interferenceActive() ? CORRUPTION : RESTORED);
-            font.draw(batch, progress.routeChanged() ?
-                    "No Zero desviou a rota - ELO segue o sinal" :
+            font.draw(batch, progress.step() == PhaseThreeProgress.Step.SWITCH ?
+                    "No Zero bloqueou a passagem: acione a chave de rota" :
+                    progress.routeChanged() ? "Desvio acionado por ELO" :
                     "Rota " + (progress.activeRoute() == 0 ? "superior" : "inferior") + " ativa",
                     left, 25);
         }
