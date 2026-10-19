@@ -331,8 +331,8 @@ final class CampaignGame extends ApplicationAdapter {
             font.draw(batch, "Reconstrua a rede com ELO", width * 0.12f, height * 0.71f);
             font.setColor(MUTED);
             font.draw(batch, source instanceof KeyboardPedalSource
-                            ? "Modo teclado: F = uma pedalada"
-                            : simulated ? "Modo sem pedal conectado" : "Controle por mini pedal IoT",
+                            ? "Modo teclado: F alterna o giro; setas escolhem o lado"
+                            : simulated ? "Modo sem sensor conectado" : "Controle pelo MPU6050",
                     width * 0.12f, height * 0.66f);
             String[] options = active == null
                     ? new String[] {"Jogar", "Como jogar", "Sair"}
@@ -359,13 +359,13 @@ final class CampaignGame extends ApplicationAdapter {
         font.getData().setScale(1.15f);
         font.setColor(Color.WHITE);
         font.draw(batch, source instanceof KeyboardPedalSource
-                        ? "Toque F para pedalar e conduzir ELO."
-                        : "Pedale para conduzir ELO e restaurar os objetos.",
+                        ? "F alterna; setas cima/baixo escolhem o giro."
+                        : "Gire o antebraco para conduzir ELO.",
                 width * 0.12f, height * 0.68f);
-        font.draw(batch, "Fase 2: mantenha movimentos regulares.", width * 0.12f, height * 0.59f);
-        font.draw(batch, "Fase 3: pedale na chave para mudar de linha.", width * 0.12f, height * 0.50f);
+        font.draw(batch, "Fase 2: mantenha giros regulares.", width * 0.12f, height * 0.59f);
+        font.draw(batch, "Fase 3: gire para baixo ou cima na chave.", width * 0.12f, height * 0.50f);
         font.setColor(CYAN);
-        font.draw(batch, "3 pares regulares carregam o escudo do mascote.", width * 0.12f, height * 0.39f);
+        font.draw(batch, "3 pares de giros regulares carregam o escudo.", width * 0.12f, height * 0.39f);
         font.draw(batch, "A protecao dura 15 segundos de jogo.", width * 0.12f, height * 0.32f);
         font.setColor(MUTED);
         font.draw(batch, "Espaco: pausa e opcoes de menu", width * 0.12f, height * 0.23f);
@@ -421,7 +421,7 @@ final class CampaignGame extends ApplicationAdapter {
         font.getData().setScale(0.95f);
         font.setColor(Color.WHITE);
         font.draw(batch, "Fase " + progress.phase() + "/3  |  Integridade " +
-                progress.integrity() + "/3  |  " + progress.totalTurns() + " voltas",
+                progress.integrity() + "/3  |  " + progress.totalTurns() + " giros",
                 width - 330f, height - 31f);
         font.setColor(MUTED);
         font.draw(batch, "Fragmentos de energia: " + progress.totalFragments() + "/9",
@@ -473,14 +473,14 @@ final class CampaignGame extends ApplicationAdapter {
         font.getData().setScale(1.15f);
         font.setColor(Color.WHITE);
         for (int phase = 1; phase <= 3; phase++) {
-            String result = phaseName(phase) + ": " + progress.turns(phase) + " voltas, " +
+            String result = phaseName(phase) + ": " + progress.turns(phase) + " giros, " +
                     Math.round(progress.movingSeconds(phase)) + " s em movimento, " +
                     progress.objectives(phase) + "/3 objetivos";
             if (phase > 1) result += ", " + progress.stablePairs(phase) + " pares regulares";
             font.draw(batch, result, width * 0.19f, height * (0.64f - (phase - 1) * 0.11f));
         }
         font.setColor(victory ? SUCCESS : DANGER);
-        font.draw(batch, "Total: " + progress.totalTurns() + " voltas  |  " +
+        font.draw(batch, "Total: " + progress.totalTurns() + " giros  |  " +
                 Math.round(progress.totalMovingSeconds()) + " s em movimento  |  Integridade " +
                 progress.integrity() + "/3  |  Fragmentos " + progress.totalFragments() + "/9",
                 width * 0.19f, height * 0.27f);
