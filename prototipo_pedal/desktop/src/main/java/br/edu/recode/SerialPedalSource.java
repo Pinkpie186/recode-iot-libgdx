@@ -29,7 +29,7 @@ final class SerialPedalSource implements PedalSource {
             return;
         }
         running = true;
-        reader = new Thread(this::readLoop, "recode-pedal-serial");
+        reader = new Thread(this::readLoop, "recode-forearm-serial");
         reader.setDaemon(true);
         reader.start();
     }
@@ -52,8 +52,14 @@ final class SerialPedalSource implements PedalSource {
                             PedalFrame frame = PedalFrame.parse(line.toString().trim());
                             frames.add(frame);
                             lastFrameNanos = System.nanoTime();
-                        } catch (RuntimeException ignored) {
-                            // Uma linha malformada nao gera movimento no jogo.
+                            error = "";
+                        } catch (RuntimeException ex) {
+                            // Linhas incompletas sao ignoradas; incompatibilidade fica visivel.
+                            String reason = ex.getMessage();
+                            if (reason != null && (reason.startsWith("Firmware do sensor") ||
+                                    reason.startsWith("Controle incompativel") ||
+                                    reason.startsWith("MPU6050 nao") ||
+                                    reason.startsWith("Mantenha o antebraco"))) error = reason;
                         }
                         line.setLength(0);
                     } else if (line.length() < 256 && c >= 32 && c < 127) {
