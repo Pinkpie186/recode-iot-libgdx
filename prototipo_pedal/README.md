@@ -6,8 +6,8 @@ volta válida avança ELO. Após a conclusão de uma fase, a próxima começa
 automaticamente. A leitura do pedal acompanha toda a campanha, e o resultado
 final mantém voltas, objetivos, pares regulares e tempo de movimento de cada
 fase. Os números são parâmetros lúdicos provisórios, não metas de exercício.
-Há também uma simulação identificada para desenvolvimento. O protótipo ainda
-depende de validação do dispositivo físico e dos objetivos de reabilitação.
+Há também modos sem o dispositivo conectado. A calibração do dispositivo físico
+e dos objetivos de reabilitação precisa ser validada antes do uso nessa finalidade.
 
 ## Materiais
 
@@ -74,10 +74,10 @@ voltas anteriores à abertura do jogo.
 
 ### Trabalhar antes de ter as peças
 
-**Teste interativo no Windows:** abra `Jogar-ReCode.cmd` com dois cliques. No
-menu, pressione `Enter` para jogar. Cada toque em `F` simula uma pedalada; toque
+**Jogar no Windows:** abra `Jogar-ReCode.cmd` com dois cliques. No
+menu, pressione `Enter` para jogar. No modo teclado, cada toque em `F` representa uma pedalada; toque
 em intervalos regulares para carregar o escudo nas fases 2 e 3. `Espaço` abre a
-pausa. Este teste requer JDK 17 e as dependências do Gradle já baixadas. Também
+pausa. O jogo requer JDK 17 e as dependências do Gradle já baixadas. Também
 é possível iniciar pela pasta `desktop/` com `gradle run -Pkeyboard=true`.
 
 Com JDK 17 e Gradle instalados, abra `desktop/` no terminal e execute:
@@ -181,10 +181,13 @@ gradle run -Pphase=3 -Pport=COM3
 
 No confronto final, ELO restaura **seis condutos** e estabiliza **três escudos**
 de Nó Zero. Cada escudo pede a sequência: **precisão** (três voltas detectadas
-individualmente), **ritmo** (dois pares de intervalos regulares seguidos) e
-**estabilidade** (mais três pares regulares seguidos). O jogo mostra a etapa
-ativa e o progresso. Após a precisão, Nó Zero desvia a energia para outra rota;
-ELO a acompanha automaticamente. Nó Zero fica no plano distante da arena,
+individualmente), **chave de rota** (uma pedalada individual para acionar o desvio),
+**ritmo** (dois pares de intervalos regulares seguidos) e **estabilidade**
+(mais três pares regulares seguidos). O jogo mostra a etapa ativa e o progresso.
+Nó Zero bloqueia a passagem em cada trecho. Depois da precisão, ELO para na chave
+e permanece na mesma linha até o jogador dar a pedalada que abre a outra. A
+primeira troca leva ELO à linha inferior; as seguintes alternam as linhas.
+Uma volta recebida em lote não aciona a chave. Nó Zero fica no plano distante da arena,
 acompanha a câmera e aparece atrás das estruturas e rotas do primeiro plano.
 Na campanha, os disparos saem de sua boca, seguem a posição de ELO e só exibem
 o impacto quando chegam ao personagem ou ao escudo. Ele enfraquece a cada
@@ -229,7 +232,7 @@ parâmetros **de engenharia para teste**, não metas de exercício. A duração,
 intensidade e a adequação do movimento de pedalada para reabilitação continuam
 pendentes de validação profissional.
 
-## Escopo após este protótipo
+## Próximas melhorias
 
 Adicionar calibração de cadência individual, menu/pausa/reinício controlados por
 IoT, métricas persistidas entre execuções e tratamento de reconexão.
