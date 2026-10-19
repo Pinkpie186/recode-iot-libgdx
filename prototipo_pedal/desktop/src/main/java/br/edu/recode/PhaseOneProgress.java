@@ -1,6 +1,6 @@
 package br.edu.recode;
 
-/** Estado da primeira fase, independente da tela e da origem das pedaladas. */
+/** Estado da primeira fase, independente da tela e da origem dos giros. */
 final class PhaseOneProgress {
     static final int TARGET_ROTATIONS = 20; // Apenas para testar a mecanica.
     static final int[] REPAIR_AT = {5, 10, 15};
