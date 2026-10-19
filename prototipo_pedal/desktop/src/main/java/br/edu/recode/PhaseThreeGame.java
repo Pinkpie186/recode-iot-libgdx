@@ -38,6 +38,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
     private float energyPulse;
     private float shieldPulse;
     private float routePulse;
+    private float wrongRoutePulse;
     private float displayRouteY = Float.NaN;
     private boolean campaignLocked;
 
@@ -91,7 +92,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
                 Gdx.input.isKeyJustPressed(Input.Keys.SPACE))) progress.togglePause();
         if (manageSource && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             progress.restart();
-            energyPulse = shieldPulse = routePulse = 0f;
+            energyPulse = shieldPulse = routePulse = wrongRoutePulse = 0f;
             displayRouteY = Float.NaN;
         }
 
@@ -100,11 +101,15 @@ final class PhaseThreeGame extends ApplicationAdapter {
             int turns = counter.accept(frame, now);
             if (turns > 0 && !campaignLocked && !progress.isPaused() && !progress.isComplete()) {
                 int routeBefore = progress.activeRoute();
-                int restored = progress.acceptTurns(turns, frame.lastCycleMillis);
+                boolean atSwitch = progress.step() == PhaseThreeProgress.Step.SWITCH;
+                int restored = progress.acceptTurns(turns, frame.lastCycleMillis, frame.direction);
                 if (shield.acceptTurns(turns, frame.lastCycleMillis)) combat.shieldStarted();
                 energyPulse = 1f;
                 if (restored > 0) shieldPulse = 1f;
                 if (!progress.isComplete() && progress.activeRoute() != routeBefore) routePulse = 1f;
+                if (atSwitch && progress.step() == PhaseThreeProgress.Step.SWITCH)
+                    wrongRoutePulse = 1.4f;
+                else if (progress.activeRoute() != routeBefore) wrongRoutePulse = 0f;
             }
         }
         float delta = Gdx.graphics.getDeltaTime();
@@ -117,6 +122,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
         energyPulse = Math.max(0f, energyPulse - delta * 2.4f);
         shieldPulse = Math.max(0f, shieldPulse - delta * 1.15f);
         routePulse = Math.max(0f, routePulse - delta * 1.15f);
+        wrongRoutePulse = Math.max(0f, wrongRoutePulse - delta);
 
         int width = Gdx.graphics.getWidth();
         int height = Gdx.graphics.getHeight();
@@ -320,7 +326,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
         font.draw(batch, "ReCode  |  Sistema Central", left, height - 37);
         font.getData().setScale(1.1f);
         font.setColor(MUTED);
-        font.draw(batch, simulated ? "Modo sem pedal conectado" :
+        font.draw(batch, simulated ? "Modo sem sensor conectado" :
                 "Restaure os condutos e estabilize o nucleo", left, height - 71);
         if (manageSource) font.draw(batch, "P: pausa   R: reiniciar", width - 235, height - 71);
         else font.draw(batch, "Espaco: opcoes", width - 210, 25);
@@ -335,13 +341,14 @@ final class PhaseThreeGame extends ApplicationAdapter {
 
         font.setColor(MUTED);
         font.draw(batch, status, left, 76);
-        font.draw(batch, "Cadencia: " + Math.round(connected ? counter.rpm(now) : 0) + " RPM",
+        font.draw(batch, "Ritmo: " + Math.round(connected ? counter.rpm(now) : 0) + " giros/min",
                 right - 165, 76);
         if (!progress.isComplete()) {
             String sequence = progress.step() == PhaseThreeProgress.Step.PRECISION
-                    ? "Precisao: " + progress.precisionTurns() + "/3 voltas individuais"
+                    ? "Precisao: " + progress.precisionTurns() + "/3 giros individuais"
                     : progress.step() == PhaseThreeProgress.Step.SWITCH
-                    ? "Chave de rota: pedale 1 volta para acionar o desvio"
+                    ? "Chave de rota: gire para " +
+                        (progress.requiredDirection() < 0 ? "BAIXO" : "CIMA")
                     : progress.step() == PhaseThreeProgress.Step.RHYTHM
                     ? "Ritmo: " + progress.rhythmStreak() + "/2 pares seguidos"
                     : "Estabilidade: " + progress.stabilityStreak() + "/3 pares seguidos";
@@ -349,7 +356,9 @@ final class PhaseThreeGame extends ApplicationAdapter {
                     left, 49);
             font.setColor(progress.interferenceActive() ? CORRUPTION : RESTORED);
             font.draw(batch, progress.step() == PhaseThreeProgress.Step.SWITCH ?
-                    "No Zero bloqueou a passagem: acione a chave de rota" :
+                    wrongRoutePulse > 0f ? "Sentido oposto: gire para " +
+                            (progress.requiredDirection() < 0 ? "BAIXO" : "CIMA") :
+                            "No Zero bloqueou a passagem: gire o antebraco" :
                     progress.routeChanged() ? "Desvio acionado por ELO" :
                     "Rota " + (progress.activeRoute() == 0 ? "superior" : "inferior") + " ativa",
                     left, 25);
@@ -361,7 +370,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
             font.draw(batch, "Confronto pausado", width * 0.32f, height * 0.65f);
             font.getData().setScale(1.2f);
             font.setColor(Color.WHITE);
-            font.draw(batch, "Voltas durante a pausa nao contam.", width * 0.32f, height * 0.53f);
+            font.draw(batch, "Giros durante a pausa nao contam.", width * 0.32f, height * 0.53f);
             font.draw(batch, "P ou Espaco para continuar", width * 0.35f, height * 0.43f);
         } else if (progress.isComplete()) {
             font.getData().setScale(1.9f);
@@ -372,7 +381,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
             font.draw(batch, "ELO conteve No Zero e reconectou a rede.", width * 0.28f, height * 0.56f);
             font.setColor(MUTED);
             font.draw(batch, "3 escudos  |  6 condutos  |  " + progress.totalTurns()
-                    + " voltas", width * 0.33f, height * 0.46f);
+                    + " giros", width * 0.33f, height * 0.46f);
             font.draw(batch, Math.round(progress.movingSeconds()) +
                     (manageSource ? " s com movimento  |  R para jogar novamente"
                             : " s com movimento  |  Campanha concluida"), width * 0.29f, height * 0.38f);
