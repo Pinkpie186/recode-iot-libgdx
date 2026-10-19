@@ -1,3 +1,8 @@
+param(
+    [switch]$Sensor,
+    [string]$Port,
+    [switch]$ListPorts
+)
 $ErrorActionPreference = 'Stop'
 $gameRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $desktop = Join-Path $gameRoot 'desktop'
@@ -36,8 +41,43 @@ try {
     Write-Host 'Preparando ReCode...'
     & javac -encoding UTF-8 -cp $classpath -d $classes $sources
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    Write-Host 'Modo teclado: Enter para jogar, F alterna o giro, setas escolhem o lado, Espaco pausa.'
-    & java '-Drecode.keyboard=true' '-Drecode.phase=campaign' -cp $classpath br.edu.recode.DesktopLauncher
+    if ($ListPorts) {
+        & java -cp $classpath br.edu.recode.SerialPortLister
+        exit $LASTEXITCODE
+    }
+    if ($Sensor -or $Port) {
+        if (-not $Port) {
+            $ports = @(& java -cp $classpath br.edu.recode.SerialPortLister)
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $ports = @($ports | Where-Object { $_ -match '^([^\s]+)\t' })
+            if ($ports.Count -eq 0) {
+                Write-Host 'Conecte o ESP32 e feche o Monitor Serial antes de jogar.'
+                exit 1
+            }
+            Write-Host 'Portas seriais encontradas:'
+            for ($i = 0; $i -lt $ports.Count; $i++) {
+                Write-Host "  $($i + 1). $($ports[$i])"
+            }
+            if ($ports.Count -eq 1) {
+                $choice = 1
+            } else {
+                $choice = 0
+                $answer = Read-Host 'Numero da porta do ESP32'
+                if (-not [int]::TryParse($answer, [ref]$choice)) {
+                    throw 'Escolha um numero da lista.'
+                }
+            }
+            if ($choice -lt 1 -or $choice -gt $ports.Count) {
+                throw 'Porta fora da lista.'
+            }
+            $Port = ($ports[$choice - 1] -split "`t", 2)[0]
+        }
+        Write-Host "Iniciando ReCode com ESP32 na porta $Port (115200 baud)."
+        & java "-Drecode.port=$Port" '-Drecode.phase=campaign' -cp $classpath br.edu.recode.DesktopLauncher
+    } else {
+        Write-Host 'Modo teclado: Enter para jogar, F alterna o giro, setas escolhem o lado, Espaco pausa.'
+        & java '-Drecode.keyboard=true' '-Drecode.phase=campaign' -cp $classpath br.edu.recode.DesktopLauncher
+    }
     exit $LASTEXITCODE
 } finally {
     Pop-Location
