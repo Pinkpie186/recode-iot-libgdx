@@ -184,10 +184,11 @@ de Nó Zero. Cada escudo pede a sequência: **precisão** (três voltas detectad
 individualmente), **ritmo** (dois pares de intervalos regulares seguidos) e
 **estabilidade** (mais três pares regulares seguidos). O jogo mostra a etapa
 ativa e o progresso. Após a precisão, Nó Zero desvia a energia para outra rota;
-ELO a acompanha automaticamente. O vírus domina o fundo do cenário, usando a
-forma de sua folha de sprites e uma aura de corrupção. Na campanha, os disparos
-saem da boca de Nó Zero e avançam até ELO; a interferência nas rotas também
-parte do fundo. Ele enfraquece a cada escudo restaurado e desaparece na vitória.
+ELO a acompanha automaticamente. Nó Zero fica no plano distante da arena,
+acompanha a câmera e aparece atrás das estruturas e rotas do primeiro plano.
+Na campanha, os disparos saem de sua boca, seguem a posição de ELO e só exibem
+o impacto quando chegam ao personagem ou ao escudo. Ele enfraquece a cada
+escudo restaurado e desaparece na vitória.
 
 O jogador não precisa aumentar a velocidade. Voltas em lote continuam no total,
 mas não comprovam uma volta individual nem um intervalo regular. Uma mudança de
