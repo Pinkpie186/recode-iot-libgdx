@@ -217,11 +217,11 @@ final class PhaseTwoGame extends ApplicationAdapter {
         font.draw(batch, "ReCode  |  Rede Instavel", left, height - 37);
         font.getData().setScale(1.1f);
         font.setColor(MUTED);
-        font.draw(batch, simulated ? "Modo sem pedal conectado" :
+        font.draw(batch, simulated ? "Modo sem sensor conectado" :
                 "Mantenha seu ritmo confortavel para estabilizar a rede", left, height - 71);
         font.setColor(Color.WHITE);
         font.draw(batch, "Nos: " + progress.nodes() + " / 3", left, height - 130);
-        font.draw(batch, "Voltas validas: " + progress.totalTurns(), right - 250, height - 130);
+        font.draw(batch, "Giros validos: " + progress.totalTurns(), right - 250, height - 130);
         for (int i = 0; i < PhaseTwoProgress.NODE_COUNT; i++) {
             float x = left + segment * (i + 1);
             font.setColor(i < progress.nodes() ? RESTORED : MUTED);
@@ -234,11 +234,11 @@ final class PhaseTwoGame extends ApplicationAdapter {
 
         font.setColor(MUTED);
         font.draw(batch, status, left, 73);
-        font.draw(batch, "Cadencia: " + Math.round(connected ? counter.rpm(now) : 0) + " RPM",
+        font.draw(batch, "Ritmo: " + Math.round(connected ? counter.rpm(now) : 0) + " giros/min",
                 right - 165, 73);
         if (!progress.isComplete()) {
             font.draw(batch, "No atual: " + Math.min(progress.nodeTurns(), PhaseTwoProgress.TURNS_PER_NODE)
-                    + "/8 voltas; pares seguidos: " + Math.min(progress.stablePairs(), 2)
+                    + "/8 giros; pares seguidos: " + Math.min(progress.stablePairs(), 2)
                     + "/2", left, 47);
             font.setColor(progress.interferenceActive() ? CORRUPTION : RESTORED);
             font.draw(batch, progress.interferenceActive() ?
@@ -255,7 +255,7 @@ final class PhaseTwoGame extends ApplicationAdapter {
             font.draw(batch, "Rede pausada", width * 0.37f, height * 0.64f);
             font.getData().setScale(1.2f);
             font.setColor(Color.WHITE);
-            font.draw(batch, "Voltas durante a pausa nao contam.", width * 0.32f, height * 0.53f);
+            font.draw(batch, "Giros durante a pausa nao contam.", width * 0.32f, height * 0.53f);
             font.draw(batch, "P ou Espaco para continuar", width * 0.35f, height * 0.43f);
         } else if (progress.isComplete()) {
             font.getData().setScale(1.9f);
@@ -265,7 +265,7 @@ final class PhaseTwoGame extends ApplicationAdapter {
             font.setColor(Color.WHITE);
             font.draw(batch, "No Zero recuou para o Sistema Central.", width * 0.29f, height * 0.55f);
             font.setColor(MUTED);
-            font.draw(batch, "3 nos  |  " + progress.totalTurns() + " voltas  |  " +
+            font.draw(batch, "3 nos  |  " + progress.totalTurns() + " giros  |  " +
                     Math.round(progress.movingSeconds()) + " s com movimento",
                     width * 0.27f, height * 0.45f);
             font.draw(batch, manageSource ? "R para jogar novamente"
