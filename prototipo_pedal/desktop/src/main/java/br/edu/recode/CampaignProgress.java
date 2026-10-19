@@ -64,7 +64,7 @@ final class CampaignProgress {
             observedObjective = objective;
             nextStrikeAt = target + EXTRA_TURNS_PER_STRIKE;
         }
-        // Só há risco após o mínimo de voltas, quando faltam pares regulares.
+        // So ha risco apos o minimo de giros, quando faltam pares regulares.
         // Uma cadência lenta e regular nunca causa dano; não existe cronômetro.
         if (segmentTurns < target || pairs >= requiredPairs) return;
         while (segmentTurns >= nextStrikeAt && integrity > 0) {
