@@ -2,17 +2,19 @@ package br.edu.recode;
 
 /** Sequencia ludica do confronto final; os limites nao sao metas de exercicio. */
 final class PhaseThreeProgress {
-    enum Step { PRECISION, RHYTHM, STABILITY }
+    enum Step { PRECISION, SWITCH, RHYTHM, STABILITY }
 
     static final int SHIELD_COUNT = 3;
     static final int PRECISION_TURNS = 3;
+    static final int SWITCH_TURNS = 1;
     static final int RHYTHM_PAIRS = 2;
     static final int STABILITY_PAIRS = 3;
-    static final int MIN_TURNS_PER_SHIELD = 9;
+    static final int MIN_TURNS_PER_SHIELD = 10;
 
     private int shields;
     private int shieldTurns;
     private int precisionTurns;
+    private int switchTurns;
     private int rhythmStreak;
     private int stabilityStreak;
     private int stablePairsTotal;
@@ -23,7 +25,7 @@ final class PhaseThreeProgress {
     private long lastTurnMillis = -1;
     private long lastIntervalMillis = -1;
 
-    /** Cada volta isolada avanca a precisao; as etapas seguintes pedem ritmo continuo. */
+    /** A pedalada na chave de rota e uma acao separada da sequencia de precisao. */
     int acceptTurns(int turns, long lastCycleMillis) {
         if (paused || isComplete() || turns <= 0) return 0;
         boolean steady = false;
@@ -53,8 +55,15 @@ final class PhaseThreeProgress {
                 case PRECISION:
                     // Um lote de voltas nao informa o instante de cada movimento.
                     if (individual && ++precisionTurns >= PRECISION_TURNS) {
-                        step = Step.RHYTHM;
+                        step = Step.SWITCH;
+                        switchTurns = 0;
                         rhythmStreak = 0;
+                        lastIntervalMillis = -1;
+                    }
+                    break;
+                case SWITCH:
+                    if (individual && ++switchTurns >= SWITCH_TURNS) {
+                        step = Step.RHYTHM;
                         lastIntervalMillis = -1;
                     }
                     break;
@@ -70,7 +79,7 @@ final class PhaseThreeProgress {
                     if (stabilityStreak >= STABILITY_PAIRS) {
                         shields++;
                         restored++;
-                        shieldTurns = precisionTurns = rhythmStreak = stabilityStreak = 0;
+                        shieldTurns = precisionTurns = switchTurns = rhythmStreak = stabilityStreak = 0;
                         step = Step.PRECISION;
                         lastTurnMillis = lastIntervalMillis = -1;
                     }
@@ -95,7 +104,7 @@ final class PhaseThreeProgress {
     }
 
     void restart() {
-        shields = shieldTurns = precisionTurns = rhythmStreak = stabilityStreak = 0;
+        shields = shieldTurns = precisionTurns = switchTurns = rhythmStreak = stabilityStreak = 0;
         stablePairsTotal = totalTurns = 0;
         step = Step.PRECISION;
         paused = false;
@@ -106,6 +115,7 @@ final class PhaseThreeProgress {
     int shields() { return shields; }
     int shieldTurns() { return shieldTurns; }
     int precisionTurns() { return precisionTurns; }
+    int switchTurns() { return switchTurns; }
     int rhythmStreak() { return rhythmStreak; }
     int stabilityStreak() { return stabilityStreak; }
     int stablePairsTotal() { return stablePairsTotal; }
@@ -115,8 +125,9 @@ final class PhaseThreeProgress {
     boolean isComplete() { return shields == SHIELD_COUNT; }
     float movingSeconds() { return movingSeconds; }
 
-    /** A rota muda quando ELO termina a etapa de precisao. */
-    boolean routeChanged() { return !isComplete() && step != Step.PRECISION; }
+    /** A rota muda apenas quando o jogador aciona a chave com outra pedalada. */
+    boolean routeChanged() { return !isComplete() &&
+            (step == Step.RHYTHM || step == Step.STABILITY); }
     int activeRoute() { return (shields + (routeChanged() ? 1 : 0)) % 2; }
     int restoredConduits() { return shields * 2 + (routeChanged() ? 1 : 0); }
     boolean interferenceActive() {
