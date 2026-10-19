@@ -13,6 +13,16 @@ Os números de giros e ângulos abaixo são regras do jogo configuráveis. Não 
 
 O firmware está em `firmware/recode_pedal/recode_pedal.ino`. O nome antigo da pasta foi mantido para não quebrar caminhos do projeto; o código agora usa **MPU6050**, sem pedal nem chave magnética. Abra o arquivo na Arduino IDE com a placa ESP32 configurada e grave no dispositivo. Se cima/baixo aparecerem invertidos, altere `DIRECTION_SIGN` de `1` para `-1` no início do firmware e grave novamente.
 
+### Ambiente preparado a partir do laboratório do professor
+
+O exemplo `MovimentoSprite` do laboratório usa **libGDX**, **jSerialComm**, uma thread para ler a serial e uma ferramenta para listar portas. O ReCode mantém esses componentes no jogo existente. A thread está em `desktop/src/main/java/br/edu/recode/SerialPedalSource.java`; a listagem, em `SerialPortLister.java`. O exemplo do laboratório transmite textos como `Sentido: 1` em **9600 baud**. O firmware deste jogo transmite o JSON abaixo em **115200 baud**, pois a campanha também precisa do instante e do total de movimentos. Não grave o exemplo serial do laboratório no ESP32 para controlar o ReCode.
+
+Antes de receber o equipamento, abra `Jogar-ReCode.cmd` para testar toda a campanha pelo teclado. Para conferir as portas disponíveis, execute `./Jogar-ReCode.ps1 -ListPorts` no PowerShell. O computador pode mostrar portas Bluetooth ou de outros dispositivos; escolha a porta que aparecer para o ESP32 depois de conectá-lo.
+
+Para preparar a programação do ESP32, instale a [Arduino IDE](https://www.arduino.cc/en/software). Nas preferências, adicione o [índice estável de placas da Espressif](https://espressif.github.io/arduino-esp32/package_esp32_index.json) e instale **esp32 by Espressif Systems** pelo Gerenciador de Placas. Se tiver Arduino CLI, `./Preparar-ESP32.ps1 -InstallCore` instala o pacote e compila o sketch para o ESP32 clássico genérico. Sem CLI, o mesmo script mostra os passos para a IDE. Se a placa entregue for de outra variante, selecione o modelo exato na IDE ou informe o identificador dela em `-Board`; a pinagem I²C também precisa ser conferida para essa placa. A biblioteca `Wire` vem com a plataforma Arduino ESP32; o sketch não depende de bibliotecas externas para o MPU6050.
+
+Quando o material chegar, conecte o MPU6050, grave `firmware/recode_pedal/recode_pedal.ino` e confira o JSON no Monitor Serial em 115200. **Feche o Monitor Serial antes de abrir o jogo**, porque a porta deve ficar livre. No Windows, abra `Jogar-ReCode-ESP32.cmd`, escolha a porta listada e jogue. Você também pode especificá-la diretamente: `./Jogar-ReCode.ps1 -Sensor -Port COM3`. Troque `COM3` pela porta real. Se a porta não aparecer, confira o cabo USB de dados e o driver USB da placa.
+
 O programa lê a aceleração a cada 20 ms, suaviza o sinal e considera um giro quando a inclinação relativa ao centro alcança `25°`. Ele exige retorno à faixa central de `10°` antes de registrar outro giro e aplica um intervalo mínimo de `250 ms`. Leituras com aceleração total muito distante de 1 g são ignoradas para não confundir movimentos bruscos com postura. Esses limites são **parâmetros técnicos ajustáveis**, a conferir na montagem real.
 
 O ESP32 envia uma linha JSON a cada 100 ms em **115200 baud**:
