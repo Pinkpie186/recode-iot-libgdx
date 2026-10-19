@@ -34,9 +34,10 @@ final class PedalCounter {
         lastCycleMillis = frame.lastCycleMillis;
         lastReceivedNanos = receivedNanos;
 
-        // Limite de plausibilidade coerente com o filtro de 180 ms do firmware.
-        long maximum = Math.max(1, elapsedMs / 180 + 1);
-        if (elapsedMs > 2_000 || delta > maximum || delta > Integer.MAX_VALUE) {
+        // Rejeita saltos maiores que o filtro de 250 ms do sensor permite.
+        long maximum = Math.max(1, elapsedMs / 250 + 1);
+        if (elapsedMs > 2_000 || delta > maximum || delta > Integer.MAX_VALUE ||
+                (delta > 0 && frame.direction == 0)) {
             rpm = 0;
             return 0;
         }
