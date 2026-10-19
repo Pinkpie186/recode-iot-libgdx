@@ -217,7 +217,7 @@ final class PhaseTwoGame extends ApplicationAdapter {
         font.draw(batch, "ReCode  |  Rede Instavel", left, height - 37);
         font.getData().setScale(1.1f);
         font.setColor(MUTED);
-        font.draw(batch, simulated ? "SIMULACAO DE DESENVOLVIMENTO - sem dispositivo IoT" :
+        font.draw(batch, simulated ? "Modo sem pedal conectado" :
                 "Mantenha seu ritmo confortavel para estabilizar a rede", left, height - 71);
         font.setColor(Color.WHITE);
         font.draw(batch, "Nos: " + progress.nodes() + " / 3", left, height - 130);
