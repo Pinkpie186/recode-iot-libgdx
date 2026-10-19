@@ -118,8 +118,13 @@ final class CampaignGame extends ApplicationAdapter {
             progress.observe();
             if (progress.attackSequence() != observedAttackSequence) {
                 observedAttackSequence = progress.attackSequence();
-                if (progress.lastAttackBlocked()) combat.blocked();
-                else combat.hit();
+                if (progress.phase() == 3) {
+                    if (progress.lastAttackBlocked()) combat.launchBlocked();
+                    else combat.launchHit();
+                } else {
+                    if (progress.lastAttackBlocked()) combat.blocked();
+                    else combat.hit();
+                }
             }
             if (progress.status() == CampaignProgress.Status.DEFEAT) lockActive();
         }
@@ -445,7 +450,7 @@ final class CampaignGame extends ApplicationAdapter {
             font.draw(batch, "Proxima fase: " + phaseName(progress.phase() + 1),
                     width * 0.34f, height * 0.25f);
             batch.end();
-        } else if (isFinished() && !combat.hitActive()) {
+        } else if (isFinished() && !combat.attackFlying() && !combat.hitActive()) {
             drawResult(width, height);
         }
         Gdx.gl.glDisable(GL20.GL_BLEND);
