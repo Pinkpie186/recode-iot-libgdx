@@ -55,7 +55,7 @@ Durante o jogo, `Espaço`, `P` ou `Esc` abre a pausa. Ela permite continuar, vol
 
 1. **Circuitos Básicos:** os giros de antebraço conduzem ELO por três reparos e fragmentos de energia.
 2. **Rede Instável:** os nós são estabilizados por sequências de giros regulares. O jogo compara cada intervalo com o anterior do próprio jogador; não há velocidade mínima.
-3. **Sistema Central:** Nó Zero bloqueia alternadamente as linhas. Depois de três giros individuais de precisão, ELO para na chave. **Gire para a posição inferior para descer**, ou para a **superior para subir**, conforme a indicação na tela. Um giro no sentido oposto mantém ELO na linha atual. Após acionar a chave, complete os pares de ritmo e estabilidade para restaurar o escudo e avançar.
+3. **Sistema Central:** Nó Zero surge de uma ruptura nos circuitos no início do confronto e permanece visível como chefe da arena. Ele bloqueia alternadamente as linhas. Depois de três giros individuais de precisão, ELO para na chave. **Gire para a posição inferior para descer**, ou para a **superior para subir**, conforme a indicação na tela. Um giro no sentido oposto mantém ELO na linha atual. Após acionar a chave, complete os pares de ritmo e estabilidade para restaurar o escudo e avançar.
 
 Na Rede Instável e no Sistema Central, três pares de giros regulares carregam o escudo do mascote por **15 segundos de jogo**. Ele bloqueia os ataques de Nó Zero. O resultado final preserva os giros, objetivos, pares regulares, fragmentos e tempo de movimento de cada fase.
 
