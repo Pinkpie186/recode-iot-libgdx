@@ -27,6 +27,7 @@ final class PhaseTwoGame extends ApplicationAdapter {
     private final MascotShield shield;
     private final CombatVisuals combat;
     private final EnergyFragments fragments;
+    private final StageMotion motion = new StageMotion();
     private SpriteBatch batch;
     private ShapeRenderer shapes;
     private BitmapFont font;
@@ -94,6 +95,7 @@ final class PhaseTwoGame extends ApplicationAdapter {
             progress.restart();
             energyPulse = nodePulse = feedbackSeconds = 0f;
             movementFeedback = "";
+            motion.reset();
         }
 
         PedalFrame frame;
@@ -121,7 +123,7 @@ final class PhaseTwoGame extends ApplicationAdapter {
                 now - source.lastFrameNanos() <= 2_000_000_000L;
         if (!campaignLocked) progress.update(delta, connected && counter.rpm(now) > 0);
         if (manageSource) shield.update(delta, !progress.isPaused() && !progress.isComplete());
-        combat.update(delta);
+        if (!progress.isPaused()) combat.update(delta);
         if (!progress.isPaused()) animationTime += delta;
         energyPulse = Math.max(0f, energyPulse - delta * 2.4f);
         nodePulse = Math.max(0f, nodePulse - delta * 1.2f);
@@ -135,8 +137,11 @@ final class PhaseTwoGame extends ApplicationAdapter {
         float segment = (right - left) / PhaseTwoProgress.NODE_COUNT;
         float fraction = progress.nodes() +
                 Math.min(1f, progress.nodeTurns() / (float) PhaseTwoProgress.TURNS_PER_NODE);
-        float eloX = left + segment * fraction;
-        float journey = Math.min(1f, fraction / PhaseTwoProgress.NODE_COUNT);
+        float targetX = left + segment * fraction;
+        float targetJourney = Math.min(1f, fraction / PhaseTwoProgress.NODE_COUNT);
+        motion.update(targetX, targetJourney, delta, progress.isPaused());
+        float eloX = motion.x();
+        float journey = motion.journey();
         fragments.update(journey, delta);
 
         Gdx.gl.glClearColor(BACKGROUND.r, BACKGROUND.g, BACKGROUND.b, 1f);
@@ -186,11 +191,8 @@ final class PhaseTwoGame extends ApplicationAdapter {
         shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b, 0.16f + energyPulse * 0.20f);
         shapes.circle(eloX, y, 31 + energyPulse * 11);
         combat.draw(shapes, eloX, y + 15f, animationTime, shield);
-        if (combat.hitActive() || combat.blockedActive()) {
-            shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b,
-                    combat.hitActive() ? combat.hitStrength() * 0.65f : 0.35f);
-            shapes.rectLine(width * 0.82f, y + 35f, eloX, y + 15f, 5f);
-        }
+        combat.drawProjectile(shapes, width * 0.84f, y + 33f,
+                eloX, y + 15f, animationTime);
 
         if (progress.interferenceActive() && !progress.isPaused()) {
             float x = left + segment * (progress.nodes() + 1);
@@ -217,13 +219,16 @@ final class PhaseTwoGame extends ApplicationAdapter {
                         "Aguardando dados do ESP32" : source.error();
         batch.begin();
         if (!progress.isPaused() && !progress.isComplete()) {
-            int eloRow = combat.hitActive() ? 2 : nodePulse > 0 ? 3 : energyPulse > 0 ? 1 : 0;
+            int eloRow = combat.hitActive() ? 2 : nodePulse > 0 ? 3 : motion.moving() ? 1 : 0;
             if (combat.hitActive()) batch.setColor(1f, 0.45f, 0.62f, 1f);
-            elo.draw(batch, eloRow, animationTime, eloX + combat.hitOffset(animationTime), y + 13, 90);
+            elo.draw(batch, eloRow, animationTime, eloX + combat.hitOffset(animationTime),
+                    y + 13 + motion.gait(animationTime), 90);
             batch.setColor(Color.WHITE);
             mascot.draw(batch, shield.active() ? 2 : progress.interferenceActive() ? 2 : 0,
                     animationTime, Math.min(right - 25, eloX + 56), y + 84, 63);
-            int enemyRow = nodePulse > 0 ? 2 : progress.interferenceActive() ? 1 : 0;
+            int enemyRow = nodePulse > 0 ? 2 :
+                    combat.attackFlying() || combat.hitActive() ||
+                    combat.blockedActive() || progress.interferenceActive() ? 1 : 0;
             noZero.draw(batch, enemyRow, animationTime, width * 0.84f, y + 27, 172);
         }
 
