@@ -140,13 +140,8 @@ final class CampaignGame extends ApplicationAdapter {
             progress.observe();
             if (progress.attackSequence() != observedAttackSequence) {
                 observedAttackSequence = progress.attackSequence();
-                if (progress.phase() == 3) {
-                    if (progress.lastAttackBlocked()) combat.launchBlocked();
-                    else combat.launchHit();
-                } else {
-                    if (progress.lastAttackBlocked()) combat.blocked();
-                    else combat.hit();
-                }
+                if (progress.lastAttackBlocked()) combat.launchBlocked();
+                else combat.launchHit();
             }
             if (progress.status() == CampaignProgress.Status.DEFEAT) lockActive(true);
         }
