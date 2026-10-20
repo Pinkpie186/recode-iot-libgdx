@@ -27,6 +27,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
     private final MascotShield shield;
     private final CombatVisuals combat;
     private final EnergyFragments fragments;
+    private final StageMotion motion = new StageMotion();
     private SpriteBatch batch;
     private ShapeRenderer shapes;
     private BitmapFont font;
@@ -94,6 +95,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
             progress.restart();
             energyPulse = shieldPulse = routePulse = wrongRoutePulse = 0f;
             displayRouteY = Float.NaN;
+            motion.reset();
         }
 
         PedalFrame frame;
@@ -141,20 +143,25 @@ final class PhaseThreeGame extends ApplicationAdapter {
                 : (2f + progress.stabilityStreak() /
                 (float) PhaseThreeProgress.STABILITY_PAIRS) / 3f;
         float fraction = progress.shields() + Math.min(1f, stepFraction);
-        float eloX = left + segment * fraction;
+        float targetX = left + segment * fraction;
         float targetRouteY = progress.activeRoute() == 0 ? upperY : lowerY;
         if (Float.isNaN(displayRouteY)) displayRouteY = targetRouteY;
-        displayRouteY += (targetRouteY - displayRouteY) * Math.min(1f, delta * 7f);
+        if (!progress.isPaused()) displayRouteY += (targetRouteY - displayRouteY) *
+                (1f - (float) Math.exp(-9f * Math.min(delta, 0.05f)));
         if (Math.abs(displayRouteY - targetRouteY) < 0.5f) displayRouteY = targetRouteY;
         float eloY = displayRouteY;
-        float journey = Math.min(1f, fraction / PhaseThreeProgress.SHIELD_COUNT);
+        float targetJourney = Math.min(1f, fraction / PhaseThreeProgress.SHIELD_COUNT);
+        motion.update(targetX, targetJourney, delta, progress.isPaused());
+        float eloX = motion.x();
+        float journey = motion.journey();
         // No Zero acompanha a arquitetura distante; os condutos ficam em primeiro plano.
         float bossX = background.landmarkX(width, height, journey, 0.50f);
         float bossY = height * 0.50f +
                 (float) Math.sin(VisualComfort.ambientTime(animationTime) * 0.65f) * 5f;
         float bossSize = Math.min(width * 0.36f, height * 0.55f);
-        float mouthX = bossX;
-        float mouthY = bossY - bossSize * 0.08f;
+        // O disparo parte de um dos focos laterais do chefe, visivel atras da arena.
+        float mouthX = bossX + (eloX < bossX ? 1f : -1f) * bossSize * 0.27f;
+        float mouthY = bossY + bossSize * 0.15f;
         fragments.update(journey, delta);
 
         Gdx.gl.glClearColor(BACKGROUND.r, BACKGROUND.g, BACKGROUND.b, 1f);
@@ -249,16 +256,21 @@ final class PhaseThreeGame extends ApplicationAdapter {
 
         shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b, 0.17f + energyPulse * 0.20f);
         shapes.circle(eloX, eloY, 30 + energyPulse * 11);
-        drawBackgroundAttack(mouthX, mouthY, eloX, eloY + 12f);
+        combat.drawProjectile(shapes, mouthX, mouthY,
+                eloX, eloY + 12f, animationTime);
         combat.draw(shapes, eloX, eloY + 12f, animationTime, shield);
         if (routePulse > 0f && !progress.isComplete()) {
             shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b, routePulse * 0.32f);
             shapes.rect(eloX - 24, lowerY, 48, upperY - lowerY);
         }
         if (progress.interferenceActive() && !progress.isPaused()) {
-            shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b, 0.32f);
-            shapes.rectLine(mouthX, mouthY, eloX, eloY + 12f, 2f);
-            shapes.circle(eloX, eloY + 12f, 5f);
+            shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b, 0.22f);
+            for (int i = 1; i < 8; i++) {
+                float part = i / 8f;
+                shapes.circle(mouthX + (eloX - mouthX) * part,
+                        mouthY + (eloY + 12f - mouthY) * part, 2.5f);
+            }
+            shapes.circle(eloX, eloY + 12f, 7f);
         }
 
         if (progress.isPaused() || progress.isComplete()) {
@@ -287,25 +299,6 @@ final class PhaseThreeGame extends ApplicationAdapter {
         }
     }
 
-    private void drawBackgroundAttack(float mouthX, float mouthY, float eloX, float eloY) {
-        boolean flying = combat.attackFlying();
-        float strength = flying ? 1f : combat.impactBeamStrength();
-        if (strength <= 0f) return;
-        float travel = flying ? combat.attackFlightProgress() : 1f;
-        float dx = eloX - mouthX;
-        float dy = eloY - mouthY;
-        float distance = (float) Math.sqrt(dx * dx + dy * dy);
-        float reach = combat.attackBlocked() && distance > 0f
-                ? Math.max(0f, 1f - 55f / distance) : 1f;
-        float tipX = mouthX + dx * reach * travel;
-        float tipY = mouthY + dy * reach * travel;
-        shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b, strength * 0.30f);
-        shapes.rectLine(mouthX, mouthY, tipX, tipY, 7f + travel * 9f);
-        shapes.setColor(1f, 0.68f, 0.96f, strength * 0.85f);
-        shapes.rectLine(mouthX, mouthY, tipX, tipY, 2f + travel * 4f);
-        shapes.circle(tipX, tipY, 5f + travel * 11f);
-    }
-
     private void drawSpritesAndText(int width, int height, float left, float right,
                                     float upperY, float lowerY, float segment,
                                     float eloX, float eloY, float bossX,
@@ -315,9 +308,10 @@ final class PhaseThreeGame extends ApplicationAdapter {
                         "Aguardando dados do ESP32" : source.error();
         batch.begin();
         if (!progress.isPaused() && !progress.isComplete()) {
-            int eloRow = combat.hitActive() ? 2 : shieldPulse > 0 ? 3 : energyPulse > 0 ? 1 : 0;
+            int eloRow = combat.hitActive() ? 2 : shieldPulse > 0 ? 3 : motion.moving() ? 1 : 0;
             if (combat.hitActive()) batch.setColor(1f, 0.45f, 0.62f, 1f);
-            elo.draw(batch, eloRow, animationTime, eloX + combat.hitOffset(animationTime), eloY + 12, 88);
+            elo.draw(batch, eloRow, animationTime, eloX + combat.hitOffset(animationTime),
+                    eloY + 12 + motion.gait(animationTime), 88);
             batch.setColor(Color.WHITE);
             mascot.draw(batch, shield.active() ? 2 : progress.interferenceActive() ? 2 : 0,
                     animationTime, Math.min(right - 22, eloX + 55), eloY + 72, 60);
