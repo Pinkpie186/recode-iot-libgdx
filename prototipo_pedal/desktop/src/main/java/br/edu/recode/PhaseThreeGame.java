@@ -118,7 +118,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
         if (!campaignLocked) progress.update(delta, connected && counter.rpm(now) > 0);
         if (manageSource) shield.update(delta, !progress.isPaused() && !progress.isComplete());
         if (!progress.isPaused()) combat.update(delta);
-        animationTime += delta;
+        if (!progress.isPaused()) animationTime += delta;
         energyPulse = Math.max(0f, energyPulse - delta * 2.4f);
         shieldPulse = Math.max(0f, shieldPulse - delta * 1.15f);
         routePulse = Math.max(0f, routePulse - delta * 1.15f);
@@ -150,7 +150,8 @@ final class PhaseThreeGame extends ApplicationAdapter {
         float journey = Math.min(1f, fraction / PhaseThreeProgress.SHIELD_COUNT);
         // No Zero acompanha a arquitetura distante; os condutos ficam em primeiro plano.
         float bossX = background.landmarkX(width, height, journey, 0.50f);
-        float bossY = height * 0.50f + (float) Math.sin(animationTime * 0.65f) * 5f;
+        float bossY = height * 0.50f +
+                (float) Math.sin(VisualComfort.ambientTime(animationTime) * 0.65f) * 5f;
         float bossSize = Math.min(width * 0.36f, height * 0.55f);
         float mouthX = bossX;
         float mouthY = bossY - bossSize * 0.08f;
@@ -193,14 +194,15 @@ final class PhaseThreeGame extends ApplicationAdapter {
     }
 
     private void drawBossBacklight(float bossX, float bossY, float bossSize) {
+        float ambientTime = VisualComfort.ambientTime(animationTime);
         shapes.begin(ShapeRenderer.ShapeType.Filled);
-        float pulse = 0.5f + (float) Math.sin(animationTime * 2.2f) * 0.5f;
+        float pulse = 0.5f + (float) Math.sin(ambientTime * 2.2f) * 0.5f;
         shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b, 0.07f + pulse * 0.04f);
         shapes.circle(bossX, bossY + bossSize * 0.06f, bossSize * 0.59f);
         shapes.setColor(CORRUPTION.r, 0.15f, 0.28f, 0.10f + pulse * 0.04f);
         shapes.circle(bossX, bossY + bossSize * 0.03f, bossSize * 0.44f);
         for (int i = 0; i < 8; i++) {
-            float drift = (float) Math.sin(animationTime * 0.5f + i * 1.7f) * 12f;
+            float drift = (float) Math.sin(ambientTime * 0.5f + i * 1.7f) * 12f;
             float x = bossX + (i - 3.5f) * bossSize * 0.15f + drift;
             float y = bossY - bossSize * 0.30f + (i % 3) * bossSize * 0.08f;
             shapes.setColor(CORRUPTION.r, 0.24f, 0.47f, 0.10f);
