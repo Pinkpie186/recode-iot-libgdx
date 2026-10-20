@@ -156,6 +156,11 @@ final class PhaseTwoGame extends ApplicationAdapter {
         fragments.draw(shapes, left, right, trackY + 74f, animationTime);
         drawShapes(width, height, left, right, trackY, segment, eloX);
         drawSpritesAndText(width, height, left, right, trackY, segment, eloX, connected, now);
+        // O tiro fica a frente do chefe e de ELO para mostrar o contato real.
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        combat.drawProjectile(shapes, width * 0.84f, trackY + 27f,
+                eloX, trackY + 15f, animationTime);
+        shapes.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);
     }
 
@@ -191,15 +196,18 @@ final class PhaseTwoGame extends ApplicationAdapter {
         shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b, 0.16f + energyPulse * 0.20f);
         shapes.circle(eloX, y, 31 + energyPulse * 11);
         combat.draw(shapes, eloX, y + 15f, animationTime, shield);
-        combat.drawProjectile(shapes, width * 0.84f, y + 33f,
-                eloX, y + 15f, animationTime);
 
         if (progress.interferenceActive() && !progress.isPaused()) {
             float x = left + segment * (progress.nodes() + 1);
-            shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b, 0.30f);
-            shapes.rectLine(x + 28, y + 32, width * 0.80f, y + 58, 5);
-            shapes.rect(x - 32, y + 45, 64, 7);
-            shapes.rect(x - 21, y - 54, 42, 5);
+            // A interferencia pertence ao no atual; nao simula um tiro que erra ELO.
+            float flicker = 0.5f + 0.5f * (float) Math.sin(animationTime * 6f);
+            shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b,
+                    0.28f + flicker * 0.24f);
+            for (int i = 0; i < 6; i++) {
+                double angle = i * Math.PI / 3d + animationTime * 0.5f;
+                shapes.circle(x + (float) Math.cos(angle) * 34f,
+                        y + (float) Math.sin(angle) * 34f, 2.5f);
+            }
         }
 
         if (progress.isPaused() || progress.isComplete()) {
