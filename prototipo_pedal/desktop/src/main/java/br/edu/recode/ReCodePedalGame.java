@@ -71,7 +71,7 @@ final class ReCodePedalGame extends ApplicationAdapter {
 
     @Override public void render() {
         long now = System.nanoTime();
-        // Atalhos de desenvolvimento; o objetivo continua ligado ao sensor.
+        // Atalhos para a versao jogavel de cada fase fora da campanha.
         if (manageSource && !campaignLocked && (Gdx.input.isKeyJustPressed(Input.Keys.P) ||
                 Gdx.input.isKeyJustPressed(Input.Keys.SPACE))) progress.togglePause();
         if (manageSource && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
@@ -97,7 +97,7 @@ final class ReCodePedalGame extends ApplicationAdapter {
         if (!campaignLocked) progress.update(deltaTime, connected && counter.rpm(now) > 0);
         energyPulse = Math.max(0f, energyPulse - deltaTime * 2.5f);
         repairPulse = Math.max(0f, repairPulse - deltaTime * 1.25f);
-        animationTime += deltaTime;
+        if (!progress.isPaused()) animationTime += deltaTime;
 
         int width = Gdx.graphics.getWidth();
         int height = Gdx.graphics.getHeight();
@@ -235,7 +235,7 @@ final class ReCodePedalGame extends ApplicationAdapter {
             font.draw(batch, "3 circuitos  |  " + progress.rotations() + " giros  |  " +
                     Math.round(progress.activeSeconds()) + " s com movimento", width * 0.29f, height * 0.45f);
             font.draw(batch, manageSource ? "R para jogar novamente"
-                    : "Proxima fase em instantes", width * 0.38f, height * 0.36f);
+                    : "Enter: proxima fase quando estiver pronto", width * 0.28f, height * 0.36f);
         }
         batch.end();
     }
