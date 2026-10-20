@@ -11,6 +11,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 
 /** Sistema Central: ELO repara rotas e estabiliza os escudos de No Zero. */
 final class PhaseThreeGame extends ApplicationAdapter {
+    private static final float BOSS_REVEAL_SECONDS = 2.2f;
     private static final Color BACKGROUND = new Color(0.025f, 0.025f, 0.075f, 1f);
     private static final Color PANEL = new Color(0.035f, 0.045f, 0.12f, 0.94f);
     private static final Color TRACK = new Color(0.15f, 0.18f, 0.32f, 1f);
@@ -40,6 +41,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
     private float shieldPulse;
     private float routePulse;
     private float wrongRoutePulse;
+    private float bossRevealSeconds;
     private float displayRouteY = Float.NaN;
     private boolean campaignLocked;
 
@@ -96,6 +98,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
             energyPulse = shieldPulse = routePulse = wrongRoutePulse = 0f;
             displayRouteY = Float.NaN;
             motion.reset();
+            bossRevealSeconds = 0f;
         }
 
         PedalFrame frame;
@@ -121,6 +124,8 @@ final class PhaseThreeGame extends ApplicationAdapter {
         if (manageSource) shield.update(delta, !progress.isPaused() && !progress.isComplete());
         if (!progress.isPaused()) combat.update(delta);
         if (!progress.isPaused()) animationTime += delta;
+        if (!campaignLocked && !progress.isPaused() && !progress.isComplete())
+            bossRevealSeconds = Math.min(BOSS_REVEAL_SECONDS, bossRevealSeconds + delta);
         energyPulse = Math.max(0f, energyPulse - delta * 2.4f);
         shieldPulse = Math.max(0f, shieldPulse - delta * 1.15f);
         routePulse = Math.max(0f, routePulse - delta * 1.15f);
@@ -154,11 +159,16 @@ final class PhaseThreeGame extends ApplicationAdapter {
         motion.update(targetX, targetJourney, delta, progress.isPaused());
         float eloX = motion.x();
         float journey = motion.journey();
-        // No Zero acompanha a arquitetura distante; os condutos ficam em primeiro plano.
-        float bossX = background.landmarkX(width, height, journey, 0.50f);
-        float bossY = height * 0.50f +
-                (float) Math.sin(VisualComfort.ambientTime(animationTime) * 0.65f) * 5f;
-        float bossSize = Math.min(width * 0.36f, height * 0.55f);
+        // O chefe domina o horizonte e acompanha a camera mais devagar que a trilha.
+        float bossX = width * (0.69f - journey * 0.10f);
+        float bossSize = Math.min(width * 0.48f, height * 0.68f);
+        float portalY = height * 0.24f;
+        float reveal = Math.min(1f, bossRevealSeconds / BOSS_REVEAL_SECONDS);
+        float rise = reveal * reveal * (3f - 2f * reveal);
+        float finalBossY = portalY + bossSize * 0.50f +
+                (float) Math.sin(VisualComfort.ambientTime(animationTime) * 0.65f) * 3f;
+        float bossY = portalY - bossSize * 0.55f +
+                (finalBossY - (portalY - bossSize * 0.55f)) * rise;
         // O disparo parte de um dos focos laterais do chefe, visivel atras da arena.
         float mouthX = bossX + (eloX < bossX ? 1f : -1f) * bossSize * 0.27f;
         float mouthY = bossY + bossSize * 0.15f;
@@ -172,32 +182,67 @@ final class PhaseThreeGame extends ApplicationAdapter {
 
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
-        if (!progress.isComplete()) drawBossBacklight(bossX, bossY, bossSize);
+        StageDecor.draw(shapes, width, height, journey, animationTime, energyPulse, 3);
+        if (!progress.isComplete()) {
+            drawCircuitRift(bossX, portalY, bossSize, reveal);
+            drawBossBacklight(bossX, bossY, bossSize);
+        }
         batch.begin();
         if (!progress.isComplete()) {
-            float presence = 0.86f - progress.shields() * 0.07f;
-            batch.setColor(0.93f, 0.88f, 1f, presence);
+            batch.setColor(Color.WHITE);
             int enemyRow = shieldPulse > 0 ? 3 :
                     combat.attackFlying() || combat.hitActive() ||
                     combat.blockedActive() || progress.interferenceActive()
                             ? 1 : 0;
+            if (reveal < 1f) {
+                int clipY = Math.round(portalY * Gdx.graphics.getBackBufferHeight() / height);
+                Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
+                Gdx.gl.glScissor(0, clipY, Gdx.graphics.getBackBufferWidth(),
+                        Gdx.graphics.getBackBufferHeight() - clipY);
+            }
             noZero.draw(batch, enemyRow, animationTime, bossX, bossY, bossSize);
+            batch.flush();
+            if (reveal < 1f) Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
             batch.setColor(Color.WHITE);
         }
         batch.end();
-
-        // Plataformas e suportes da arena passam a frente do chefe.
-        batch.begin();
-        background.drawForeground(batch, width, height, journey, animationTime, 0.41f);
-        batch.end();
-
-        StageDecor.draw(shapes, width, height, journey, animationTime, energyPulse, 3);
         fragments.draw(shapes, left, right, centerY + 105f, animationTime);
         drawWorld(width, height, left, right, upperY, lowerY, segment,
                 eloX, eloY, mouthX, mouthY);
         drawSpritesAndText(width, height, left, right, upperY, lowerY, segment,
                 eloX, eloY, bossX, connected, now);
         Gdx.gl.glDisable(GL20.GL_BLEND);
+    }
+
+    private void drawCircuitRift(float x, float y, float bossSize, float reveal) {
+        float ambient = VisualComfort.ambientTime(animationTime);
+        float opening = Math.min(1f, 0.16f + reveal * 2.2f);
+        float width = bossSize * 1.24f * opening;
+        float height = bossSize * 0.30f * opening;
+        float glow = 0.72f + 0.28f * (float) Math.sin(ambient * 4f);
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b, 0.16f * glow);
+        shapes.ellipse(x - width * 0.62f, y - height * 0.72f,
+                width * 1.24f, height * 1.44f);
+        shapes.setColor(CORRUPTION.r, 0.22f, 0.88f, 0.72f * glow);
+        shapes.ellipse(x - width * 0.5f, y - height * 0.5f, width, height);
+        shapes.setColor(0.025f, 0.008f, 0.055f, 0.97f);
+        shapes.ellipse(x - width * 0.46f, y - height * 0.35f,
+                width * 0.92f, height * 0.70f);
+        for (int side = -1; side <= 1; side += 2) {
+            float edge = x + side * width * 0.46f;
+            for (int i = 0; i < 3; i++) {
+                float startY = y + (i - 1) * height * 0.20f;
+                float tipX = edge + side * (36f + i * 20f) * opening;
+                float tipY = startY + (i - 1) * 19f;
+                shapes.setColor(CORRUPTION.r, 0.35f, 0.92f, 0.56f * glow);
+                shapes.rectLine(edge, startY, tipX, startY, 3f);
+                shapes.rectLine(tipX, startY, tipX, tipY, 3f);
+                shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b, 0.78f * glow);
+                shapes.circle(tipX, tipY, 3f);
+            }
+        }
+        shapes.end();
     }
 
     private void drawBossBacklight(float bossX, float bossY, float bossSize) {
@@ -225,6 +270,17 @@ final class PhaseThreeGame extends ApplicationAdapter {
         shapes.setColor(PANEL);
         shapes.rect(0, height - 105, width, 105);
         shapes.rect(0, 0, width, 109);
+        float meterX = width * 0.72f;
+        float meterY = height - 52f;
+        float meterWidth = width * 0.19f;
+        shapes.setColor(TRACK);
+        shapes.rect(meterX - 3f, meterY - 3f, meterWidth + 6f, 17f);
+        for (int i = 0; i < PhaseThreeProgress.SHIELD_COUNT; i++) {
+            shapes.setColor(i < progress.shields() ? RESTORED : CORRUPTION);
+            float piece = meterWidth / PhaseThreeProgress.SHIELD_COUNT;
+            shapes.rect(meterX + i * piece + 2f, meterY,
+                    piece - 4f, 11f);
+        }
 
         shapes.setColor(TRACK);
         shapes.rect(left, upperY - 6, right - left, 12);
@@ -324,17 +380,15 @@ final class PhaseThreeGame extends ApplicationAdapter {
         font.setColor(MUTED);
         font.draw(batch, simulated ? "Modo sem sensor conectado" :
                 "Restaure os condutos e estabilize o nucleo", left, height - 71);
+        font.setColor(CORRUPTION);
+        font.draw(batch, "NO ZERO", width * 0.72f, height - 25f);
+        font.setColor(MUTED);
         if (manageSource) font.draw(batch, "P: pausa   R: reiniciar", width - 235, height - 71);
         else font.draw(batch, "Espaco: opcoes", width - 210, 25);
         font.setColor(Color.WHITE);
         font.draw(batch, "Escudos: " + progress.shields() + " / 3", left, height - 130);
         font.draw(batch, "Condutos: " + progress.restoredConduits() + " / 6",
                 right - 170, height - 130);
-        if (!progress.isPaused() && !progress.isComplete()) {
-            font.setColor(CORRUPTION);
-            font.draw(batch, "NO ZERO", bossX - 43f, lowerY - 62);
-        }
-
         font.setColor(MUTED);
         font.draw(batch, status, left, 76);
         font.draw(batch, "Ritmo: " + Math.round(connected ? counter.rpm(now) : 0) + " giros/min",
