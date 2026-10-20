@@ -2,7 +2,6 @@ package br.edu.recode;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.utils.Disposable;
 
@@ -44,17 +43,6 @@ final class ScenarioBackground implements Disposable {
         float drawWidth = texture.getWidth() * scale;
         float position = Math.max(0f, Math.min(1f, journey));
         return -(drawWidth - width) * position + drawWidth * imageFraction;
-    }
-
-    /** A arquitetura proxima cobre a parte inferior de um inimigo no horizonte. */
-    void drawForeground(SpriteBatch batch, int width, int height, float journey,
-                        float time, float screenFraction) {
-        Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
-        Gdx.gl.glScissor(0, 0, Gdx.graphics.getBackBufferWidth(),
-                Math.round(Gdx.graphics.getBackBufferHeight() * screenFraction));
-        draw(batch, width, height, journey, time);
-        batch.flush();
-        Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
     }
 
     @Override public void dispose() { texture.dispose(); }
