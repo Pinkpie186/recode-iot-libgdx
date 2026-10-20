@@ -59,6 +59,8 @@ Durante o jogo, `Espaço`, `P` ou `Esc` abre a pausa. Ela permite continuar, vol
 
 Na Rede Instável e no Sistema Central, três pares de giros regulares carregam o escudo do mascote por **15 segundos de jogo**. Ele bloqueia os ataques de Nó Zero. O resultado final preserva os giros, objetivos, pares regulares, fragmentos e tempo de movimento de cada fase.
 
+Os quadros de ELO alternam entre repouso, corrida, impacto e reparo. O avanço do personagem e o deslocamento do cenário usam o tempo de cada quadro para acompanhar os gestos sem saltos visuais; elementos próximos e distantes se movem em velocidades diferentes. Nas fases 2 e 3, os disparos de Nó Zero mostram direção, trajetória e impacto; na fase final eles partem do chefe ao fundo e chegam até ELO ou ao escudo.
+
 Para conferir a lógica sem abrir a janela, execute `gradle verifyCampaign` na pasta `desktop/`. Para abrir a fase 3 separadamente, use `gradle run -Pphase=3 -Pkeyboard=true`. Os resultados da tentativa aparecem ao final da campanha, com giros, objetivos, pares regulares e tempo com movimento por fase. Esses números descrevem apenas o desempenho no jogo.
 
 ## Conferência com o MPU6050
