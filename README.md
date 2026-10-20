@@ -8,7 +8,7 @@ ReCode é um jogo 2D em Java e libGDX controlado pelos giros do antebraço. ELO 
 2. **Rede Instável:** sequências de giros regulares estabilizam os nós da rede.
 3. **Sistema Central:** ELO enfrenta Nó Zero, restaura os condutos e protege o núcleo. Quando Nó Zero bloqueia uma linha, ELO para na chave de rota. Um giro dirigido do antebraço aciona o desvio: para baixo leva à linha inferior; para cima leva à superior.
 
-O menu inicia ou continua a campanha. `Espaço` abre as opções de pausa, inclusive voltar ao menu. O jogo mantém a fase, a integridade e o desempenho enquanto a campanha está em andamento. O escudo do mascote é carregado por giros regulares e protege ELO por 15 segundos de jogo.
+O menu inicia ou continua a campanha. Cada fase apresenta seu objetivo antes de começar, e a passagem para a próxima área espera a pessoa estar pronta. `Espaço` abre as opções de pausa, inclusive voltar ao menu e suavizar os efeitos de fundo. O jogo mantém a fase, a integridade e o desempenho enquanto a campanha está em andamento. O escudo do mascote é carregado por giros regulares e protege ELO por 15 segundos de jogo.
 
 **Jogar e configurar:** veja as instruções em [prototipo_pedal/README.md](prototipo_pedal/README.md). O nome da pasta foi mantido para preservar os caminhos do projeto.
 
