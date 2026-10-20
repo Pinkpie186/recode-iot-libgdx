@@ -26,6 +26,7 @@ final class ScenarioBackground implements Disposable {
 
     /** A camera percorre a arte ampliada conforme ELO avanca na fase. */
     void draw(SpriteBatch batch, int width, int height, float journey, float time) {
+        time = VisualComfort.ambientTime(time);
         float scale = Math.max(width / (float) texture.getWidth(),
                 height / (float) texture.getHeight()) * 1.28f;
         float drawWidth = texture.getWidth() * scale;
