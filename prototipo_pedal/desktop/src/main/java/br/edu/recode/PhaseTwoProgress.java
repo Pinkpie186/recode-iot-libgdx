@@ -3,7 +3,7 @@ package br.edu.recode;
 /** Progresso ludico da Rede Instavel; nao avalia capacidade fisica. */
 final class PhaseTwoProgress {
     static final int NODE_COUNT = 3;
-    static final int TURNS_PER_NODE = 8; // Parametro provisório do prototipo.
+    static final int TURNS_PER_NODE = 8; // Meta ludica por no.
     static final int STABLE_PAIRS_PER_NODE = 2;
 
     private int nodes;
