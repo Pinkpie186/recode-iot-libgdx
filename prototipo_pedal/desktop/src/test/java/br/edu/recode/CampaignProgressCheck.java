@@ -14,6 +14,7 @@ public final class CampaignProgressCheck {
         mascotShieldLastsFifteenPlayingSeconds();
         shieldBlocksThenAllowsTheNextHit();
         phaseThreeAttackReachesEloBeforeImpact();
+        cameraAndEloFollowMovementWithoutJumping();
         fragmentsReactToEloProgress();
         System.out.println("CampaignProgressCheck: OK");
     }
@@ -210,6 +211,24 @@ public final class CampaignProgressCheck {
                 !run.lastAttackBlocked(), "impacto apos expiracao reduz integridade");
     }
 
+    private static void cameraAndEloFollowMovementWithoutJumping() {
+        StageMotion motion = new StageMotion();
+        motion.update(100f, 0f, 1f / 60f, false);
+        motion.update(300f, 1f, 1f / 60f, false);
+        require(motion.x() > 100f && motion.x() < 300f &&
+                motion.journey() > 0f && motion.journey() < 1f && motion.moving(),
+                "ELO e camera acompanham o gesto sem salto visual");
+        float pausedX = motion.x();
+        float pausedJourney = motion.journey();
+        motion.update(300f, 1f, 1f, true);
+        require(motion.x() == pausedX && motion.journey() == pausedJourney,
+                "pausa congela ELO e camera");
+        for (int i = 0; i < 120; i++) motion.update(300f, 1f, 1f / 60f, false);
+        require(Math.abs(motion.x() - 300f) < 0.3f &&
+                Math.abs(motion.journey() - 1f) < 0.001f,
+                "ELO e camera chegam ao destino");
+    }
+
     private static void fragmentsReactToEloProgress() {
         EnergyFragments fragments = new EnergyFragments();
         fragments.update(0.24f, 0f);
@@ -223,11 +242,11 @@ public final class CampaignProgressCheck {
     private static void phaseThreeAttackReachesEloBeforeImpact() {
         CombatVisuals visuals = new CombatVisuals();
         visuals.launchHit();
-        visuals.update(0.30f);
+        visuals.update(0.40f);
         require(visuals.attackFlying() && !visuals.hitActive() &&
                 visuals.attackFlightProgress() > 0.5f,
                 "disparo percorre a cena antes de atingir ELO");
-        visuals.update(0.25f);
+        visuals.update(0.34f);
         require(!visuals.attackFlying() && visuals.hitActive() &&
                 visuals.impactBeamStrength() > 0f,
                 "impacto e raio aparecem juntos no destino");
@@ -238,7 +257,7 @@ public final class CampaignProgressCheck {
         visuals.launchBlocked();
         require(visuals.attackBlocked() && visuals.attackFlying(),
                 "escudo intercepta o proximo disparo");
-        visuals.update(0.55f);
+        visuals.update(0.74f);
         require(visuals.blockedActive() && !visuals.hitActive(),
                 "bloqueio aparece quando o disparo chega ao escudo");
     }
