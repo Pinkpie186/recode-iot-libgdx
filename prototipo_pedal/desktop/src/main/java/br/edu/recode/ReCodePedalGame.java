@@ -25,6 +25,7 @@ final class ReCodePedalGame extends ApplicationAdapter {
     private final PhaseOneProgress progress;
     private final boolean manageSource;
     private final EnergyFragments fragments;
+    private final StageMotion motion = new StageMotion();
     private SpriteBatch batch;
     private BitmapFont font;
     private ShapeRenderer shapes;
@@ -77,6 +78,7 @@ final class ReCodePedalGame extends ApplicationAdapter {
         if (manageSource && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             progress.restart();
             energyPulse = repairPulse = 0f;
+            motion.reset();
         }
         PedalFrame frame;
         while ((frame = source.poll()) != null) {
@@ -104,8 +106,11 @@ final class ReCodePedalGame extends ApplicationAdapter {
         float left = width * 0.11f;
         float right = width * 0.89f;
         float centerY = height * 0.48f;
-        float eloX = left + (right - left) * progress.rotations() / PhaseOneProgress.TARGET_ROTATIONS;
-        float journey = progress.rotations() / (float) PhaseOneProgress.TARGET_ROTATIONS;
+        float targetX = left + (right - left) * progress.rotations() / PhaseOneProgress.TARGET_ROTATIONS;
+        float targetJourney = progress.rotations() / (float) PhaseOneProgress.TARGET_ROTATIONS;
+        motion.update(targetX, targetJourney, deltaTime, progress.isPaused());
+        float eloX = motion.x();
+        float journey = motion.journey();
         fragments.update(journey, deltaTime);
 
         Gdx.gl.glClearColor(BACKGROUND.r, BACKGROUND.g, BACKGROUND.b, 1f);
@@ -178,13 +183,14 @@ final class ReCodePedalGame extends ApplicationAdapter {
                         : source.error();
         batch.begin();
         if (!progress.isComplete()) {
-            int eloRow = repairPulse > 0 ? 3 : energyPulse > 0 ? 1 : 0;
+            int eloRow = repairPulse > 0 ? 3 : motion.moving() ? 1 : 0;
             boolean nearCircuit = false;
             for (int threshold : PhaseOneProgress.REPAIR_AT) {
                 if (progress.rotations() >= threshold - 2 && progress.rotations() < threshold) nearCircuit = true;
             }
             int mascotRow = nearCircuit ? 2 : energyPulse > 0 ? 1 : 0;
-            eloSprites.draw(batch, eloRow, animationTime, eloX, y + 10, 92);
+            eloSprites.draw(batch, eloRow, animationTime, eloX,
+                    y + 10 + motion.gait(animationTime), 92);
             mascotSprites.draw(batch, mascotRow, animationTime,
                     Math.min(right - 20, eloX + 58), y + 85, 68);
         }
