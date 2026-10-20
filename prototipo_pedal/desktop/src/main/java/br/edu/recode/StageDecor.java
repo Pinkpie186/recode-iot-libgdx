@@ -8,6 +8,7 @@ final class StageDecor {
 
     static void draw(ShapeRenderer shapes, int width, int height,
                      float journey, float time, float pulse, int phase) {
+        time = VisualComfort.ambientTime(time);
         float farShift = journey * width * 0.24f;
         float nearShift = journey * width * 0.53f;
         float r = phase == 1 ? 0.13f : phase == 2 ? 0.65f : 0.72f;
