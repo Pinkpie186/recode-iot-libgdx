@@ -122,13 +122,22 @@ final class CombatVisuals {
         time = VisualComfort.ambientTime(time);
         if (shield.active()) {
             float breathe = (float) Math.sin(time * 5f) * 3f;
-            shapes.setColor(GUARD.r, GUARD.g, GUARD.b, 0.12f);
-            shapes.circle(x, y, 57f + breathe);
+            float radius = 57f + breathe;
+            shapes.setColor(GUARD.r, GUARD.g, GUARD.b, 0.045f);
+            shapes.circle(x, y, radius);
+            shapes.setColor(GUARD.r, GUARD.g, GUARD.b, 0.58f);
+            for (int i = 0; i < 24; i++) {
+                double angle = i * Math.PI / 12d;
+                shapes.rectLine(x + (float) Math.cos(angle) * radius,
+                        y + (float) Math.sin(angle) * radius,
+                        x + (float) Math.cos(angle + 0.19f) * radius,
+                        y + (float) Math.sin(angle + 0.19f) * radius, 2.5f);
+            }
             for (int i = 0; i < 6; i++) {
                 double angle = time * 1.6 + i * Math.PI / 3.0;
                 shapes.setColor(GUARD.r, GUARD.g, GUARD.b, 0.48f);
-                shapes.circle(x + (float) Math.cos(angle) * 58f,
-                        y + (float) Math.sin(angle) * 58f, 3.5f);
+                shapes.circle(x + (float) Math.cos(angle) * radius,
+                        y + (float) Math.sin(angle) * radius, 3.5f);
             }
         }
         if (hitActive()) {
@@ -148,8 +157,15 @@ final class CombatVisuals {
         }
         if (blockedSeconds > 0f || shieldStartSeconds > 0f) {
             float pulse = Math.max(blockedSeconds / 0.75f, shieldStartSeconds / 0.8f);
-            shapes.setColor(GUARD.r, GUARD.g, GUARD.b, pulse * 0.37f);
-            shapes.circle(x, y, 62f + (1f - pulse) * 48f);
+            float radius = 62f + (1f - pulse) * 48f;
+            shapes.setColor(GUARD.r, GUARD.g, GUARD.b, pulse * 0.62f);
+            for (int i = 0; i < 12; i++) {
+                double angle = i * Math.PI / 6d;
+                shapes.rectLine(x + (float) Math.cos(angle) * radius,
+                        y + (float) Math.sin(angle) * radius,
+                        x + (float) Math.cos(angle + 0.19f) * radius,
+                        y + (float) Math.sin(angle + 0.19f) * radius, 3f);
+            }
         }
     }
 }
