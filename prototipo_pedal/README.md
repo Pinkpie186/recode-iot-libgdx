@@ -47,7 +47,9 @@ Troque `COM3` pela porta do ESP32. A primeira mensagem válida estabelece o pont
 
 **Sem o sensor conectado no Windows:** abra `Jogar-ReCode.cmd`. No menu, pressione `Enter` para jogar. `F` alterna o lado do giro; as setas **baixo** e **cima** simulam diretamente cada direção. No modo teclado, um toque representa um giro detectado. Também é possível usar `gradle run -Pkeyboard=true`. O modo automático `gradle run -Psimulate=true` gera giros alternados para conferir a campanha.
 
-No menu, use setas ou clique e confirme com `Enter`. Durante o jogo, `Espaço`, `P` ou `Esc` abre a pausa. Ela permite continuar, voltar ao menu ou iniciar outra campanha. Voltar ao menu preserva a tentativa atual; giros durante a pausa não contam.
+No menu, use setas ou clique e confirme com `Enter`. Cada fase começa com uma apresentação do objetivo e aguarda `Enter` ou toque para iniciar; os giros feitos nessa tela não contam. Ao concluir uma fase, o jogo mostra um resumo e aguarda a pessoa escolher quando continuar. Não há contagem regressiva nessa pausa entre áreas.
+
+Durante o jogo, `Espaço`, `P` ou `Esc` abre a pausa. Ela permite continuar, voltar ao menu ou iniciar outra campanha. Voltar ao menu preserva a tentativa atual; giros durante a pausa não contam. No menu principal e na pausa, **Efeitos de fundo: suaves** reduz os movimentos decorativos e o tremor ao receber um ataque. A câmera continua acompanhando o avanço de ELO. Essa preferência vale durante a execução atual do jogo.
 
 ## As três fases
 
@@ -57,7 +59,7 @@ No menu, use setas ou clique e confirme com `Enter`. Durante o jogo, `Espaço`, 
 
 Na Rede Instável e no Sistema Central, três pares de giros regulares carregam o escudo do mascote por **15 segundos de jogo**. Ele bloqueia os ataques de Nó Zero. O resultado final preserva os giros, objetivos, pares regulares, fragmentos e tempo de movimento de cada fase.
 
-Para conferir a lógica sem abrir a janela, execute `gradle verifyCampaign` na pasta `desktop/`. Para abrir a fase 3 separadamente, use `gradle run -Pphase=3 -Pkeyboard=true`.
+Para conferir a lógica sem abrir a janela, execute `gradle verifyCampaign` na pasta `desktop/`. Para abrir a fase 3 separadamente, use `gradle run -Pphase=3 -Pkeyboard=true`. Os resultados da tentativa aparecem ao final da campanha, com giros, objetivos, pares regulares e tempo com movimento por fase. Esses números descrevem apenas o desempenho no jogo.
 
 ## Conferência com o MPU6050
 
