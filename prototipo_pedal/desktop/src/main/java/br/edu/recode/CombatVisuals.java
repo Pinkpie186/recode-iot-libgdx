@@ -53,9 +53,13 @@ final class CombatVisuals {
     float attackFlightProgress() { return 1f - attackFlightSeconds / ATTACK_FLIGHT_SECONDS; }
     boolean attackBlocked() { return attackBlocked; }
     float impactBeamStrength() { return impactBeamSeconds / IMPACT_BEAM_SECONDS; }
-    float hitOffset(float time) { return hitActive() ? (float) Math.sin(time * 72f) * 9f * hitStrength() : 0f; }
+    float hitOffset(float time) {
+        return hitActive() && !VisualComfort.softEffects()
+                ? (float) Math.sin(time * 72f) * 9f * hitStrength() : 0f;
+    }
 
     void draw(ShapeRenderer shapes, float x, float y, float time, MascotShield shield) {
+        time = VisualComfort.ambientTime(time);
         if (shield.active()) {
             float breathe = (float) Math.sin(time * 5f) * 3f;
             shapes.setColor(GUARD.r, GUARD.g, GUARD.b, 0.12f);
