@@ -19,6 +19,7 @@ final class EnergyFragments {
     int collected() { return collected; }
 
     void draw(ShapeRenderer shapes, float left, float right, float y, float time) {
+        time = VisualComfort.ambientTime(time);
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         for (int i = 0; i < COUNT; i++) {
             float x = left + (right - left) * (i + 1) / 4f;
