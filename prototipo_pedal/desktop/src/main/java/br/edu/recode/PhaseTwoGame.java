@@ -37,6 +37,9 @@ final class PhaseTwoGame extends ApplicationAdapter {
     private float animationTime;
     private float energyPulse;
     private float nodePulse;
+    private float feedbackSeconds;
+    private String movementFeedback = "";
+    private boolean positiveFeedback;
     private boolean campaignLocked;
 
     void setCampaignLocked(boolean locked) { campaignLocked = locked; }
@@ -89,17 +92,28 @@ final class PhaseTwoGame extends ApplicationAdapter {
                 Gdx.input.isKeyJustPressed(Input.Keys.SPACE))) progress.togglePause();
         if (manageSource && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             progress.restart();
-            energyPulse = nodePulse = 0f;
+            energyPulse = nodePulse = feedbackSeconds = 0f;
+            movementFeedback = "";
         }
 
         PedalFrame frame;
         while ((frame = source.poll()) != null) {
             int turns = counter.accept(frame, now);
             if (turns > 0 && !campaignLocked && !progress.isPaused() && !progress.isComplete()) {
+                int pairsBefore = progress.stablePairs();
                 int repaired = progress.acceptTurns(turns, frame.lastCycleMillis);
-                if (shield.acceptTurns(turns, frame.lastCycleMillis)) combat.shieldStarted();
+                boolean shieldStarted = shield.acceptTurns(turns, frame.lastCycleMillis);
+                if (shieldStarted) combat.shieldStarted();
                 energyPulse = 1f;
                 if (repaired > 0) nodePulse = 1f;
+                positiveFeedback = repaired > 0 || shieldStarted ||
+                        progress.stablePairs() > pairsBefore;
+                movementFeedback = repaired > 0 ? "No estabilizado!"
+                        : shieldStarted ? "Escudo ativo por 15 s."
+                        : progress.stablePairs() > pairsBefore ? "Ritmo regular! Continue."
+                        : pairsBefore > 0 ? "Ritmo mudou. Retome com calma."
+                        : "Giro recebido. Siga no seu ritmo.";
+                feedbackSeconds = 2.1f;
             }
         }
         float delta = Gdx.graphics.getDeltaTime();
@@ -108,9 +122,10 @@ final class PhaseTwoGame extends ApplicationAdapter {
         if (!campaignLocked) progress.update(delta, connected && counter.rpm(now) > 0);
         if (manageSource) shield.update(delta, !progress.isPaused() && !progress.isComplete());
         combat.update(delta);
-        animationTime += delta;
+        if (!progress.isPaused()) animationTime += delta;
         energyPulse = Math.max(0f, energyPulse - delta * 2.4f);
         nodePulse = Math.max(0f, nodePulse - delta * 1.2f);
+        if (!progress.isPaused()) feedbackSeconds = Math.max(0f, feedbackSeconds - delta);
 
         int width = Gdx.graphics.getWidth();
         int height = Gdx.graphics.getHeight();
@@ -240,10 +255,11 @@ final class PhaseTwoGame extends ApplicationAdapter {
             font.draw(batch, "No atual: " + Math.min(progress.nodeTurns(), PhaseTwoProgress.TURNS_PER_NODE)
                     + "/8 giros; pares seguidos: " + Math.min(progress.stablePairs(), 2)
                     + "/2", left, 47);
-            font.setColor(progress.interferenceActive() ? CORRUPTION : RESTORED);
-            font.draw(batch, progress.interferenceActive() ?
-                    "No Zero interfere na rede" :
-                    "Sinal em recuperacao", left, 24);
+            font.setColor(feedbackSeconds > 0f ? positiveFeedback ? RESTORED : MUTED
+                    : progress.interferenceActive() ? CORRUPTION : RESTORED);
+            font.draw(batch, feedbackSeconds > 0f ? movementFeedback
+                    : progress.interferenceActive() ? "No Zero interfere na rede"
+                    : "Sinal em recuperacao", left, 24);
             font.setColor(MUTED);
             font.draw(batch, manageSource ? "P/Espaco: pausa   R: reiniciar"
                     : "Espaco: opcoes", right - 276, 24);
@@ -269,7 +285,7 @@ final class PhaseTwoGame extends ApplicationAdapter {
                     Math.round(progress.movingSeconds()) + " s com movimento",
                     width * 0.27f, height * 0.45f);
             font.draw(batch, manageSource ? "R para jogar novamente"
-                    : "Proxima fase em instantes", width * 0.38f, height * 0.36f);
+                    : "Enter: proxima fase quando estiver pronto", width * 0.28f, height * 0.36f);
         }
         batch.end();
     }
