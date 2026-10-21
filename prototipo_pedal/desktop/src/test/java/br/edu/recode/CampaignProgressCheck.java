@@ -8,6 +8,7 @@ public final class CampaignProgressCheck {
         fullVictoryKeepsAllResults();
         irregularTurnsCanCauseDefeatWithoutTimeLimit();
         phaseTwoRequiresContinuousRhythm();
+        phaseTwoBossAttacksEvenWithRegularRhythm();
         phaseThreeRequiresOrderedSequence();
         forearmFramesRequireSensorProtocol();
         sensorRecalibrationStartsFromNewBaseline();
@@ -68,13 +69,18 @@ public final class CampaignProgressCheck {
         require(run.integrity() == 3, "tempo parado nao causa derrota");
 
         long deviceMillis = 1000;
+        int observedAttack = 0;
         for (int turn = 1; turn <= 26; turn++) {
             deviceMillis += turn % 2 == 0 ? 300 : 2000;
             run.second().acceptTurns(1, deviceMillis);
             run.observe();
+            if (run.attackSequence() > observedAttack && !run.lastAttackBlocked())
+                run.resolveHit();
+            observedAttack = run.attackSequence();
         }
         require(run.status() == CampaignProgress.Status.DEFEAT, "interferencia causa derrota");
-        require(run.integrity() == 0 && run.turns(2) == 26, "desempenho mantido na derrota");
+        require(run.integrity() == 0 && run.turns(2) == 20,
+                "tres ataques sem protecao encerram a tentativa");
         require(run.turns(1) == 20, "fase anterior mantida na derrota");
     }
 
@@ -98,6 +104,20 @@ public final class CampaignProgressCheck {
         require(progress.stablePairs() > 0, "sequencia em andamento antes da pausa");
         progress.togglePause();
         require(progress.stablePairs() == 0, "pausa reinicia sequencia regular");
+    }
+
+    private static void phaseTwoBossAttacksEvenWithRegularRhythm() {
+        CampaignProgress run = new CampaignProgress();
+        run.first().addRotations(20);
+        run.observe();
+        run.advance();
+        for (int turn = 1; turn <= 6; turn++) {
+            run.second().acceptTurns(1, turn * 1000L);
+            run.observe();
+        }
+        require(run.attackSequence() == 1 && run.lastAttackBlocked() &&
+                run.integrity() == 3 && run.pendingHits() == 0,
+                "No Zero dispara no primeiro no e o ritmo regular protege ELO");
     }
 
     private static void phaseThreeRequiresOrderedSequence() {
@@ -194,7 +214,7 @@ public final class CampaignProgressCheck {
             run.mascotShield().acceptTurns(1, turn * 1000L);
 
         long time = 1000;
-        for (int turn = 1; turn <= 14; turn++) {
+        for (int turn = 1; turn <= 6; turn++) {
             time += turn % 2 == 0 ? 300 : 2000;
             run.second().acceptTurns(1, time);
             run.observe();
@@ -202,11 +222,15 @@ public final class CampaignProgressCheck {
         require(run.integrity() == 3 && run.attackSequence() == 1 &&
                 run.lastAttackBlocked(), "primeiro ataque bloqueado");
         run.mascotShield().update(15f, true);
-        for (int turn = 15; turn <= 20; turn++) {
+        for (int turn = 7; turn <= 14; turn++) {
             time += turn % 2 == 0 ? 300 : 2000;
             run.second().acceptTurns(1, time);
             run.observe();
         }
+        require(run.integrity() == 3 && run.pendingHits() == 1 &&
+                run.attackSequence() == 2 && !run.lastAttackBlocked(),
+                "ataque aguarda a animacao chegar a ELO");
+        run.resolveHit();
         require(run.integrity() == 2 && run.attackSequence() == 2 &&
                 !run.lastAttackBlocked(), "impacto apos expiracao reduz integridade");
     }
