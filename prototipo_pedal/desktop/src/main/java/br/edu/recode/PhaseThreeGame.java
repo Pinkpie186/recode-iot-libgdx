@@ -161,8 +161,9 @@ final class PhaseThreeGame extends ApplicationAdapter {
         float journey = motion.journey();
         // O chefe domina o horizonte e acompanha a camera mais devagar que a trilha.
         float bossX = width * (0.69f - journey * 0.10f);
-        float bossSize = Math.min(width * 0.48f, height * 0.68f);
-        float portalY = height * 0.24f;
+        // Cabe entre as duas faixas da interface, inclusive em 960 x 540.
+        float bossSize = Math.min(width * 0.45f, height * 0.60f);
+        float portalY = height * 0.20f;
         float reveal = Math.min(1f, bossRevealSeconds / BOSS_REVEAL_SECONDS);
         float rise = reveal * reveal * (3f - 2f * reveal);
         float finalBossY = portalY + bossSize * 0.50f +
@@ -206,6 +207,8 @@ final class PhaseThreeGame extends ApplicationAdapter {
             batch.setColor(Color.WHITE);
         }
         batch.end();
+        if (!progress.isComplete())
+            drawTornWires(width, height, bossX, bossY, bossSize, reveal);
         fragments.draw(shapes, left, right, centerY + 105f, animationTime);
         drawWorld(width, height, left, right, upperY, lowerY, segment,
                 eloX, eloY, mouthX, mouthY);
@@ -263,6 +266,53 @@ final class PhaseThreeGame extends ApplicationAdapter {
         shapes.end();
     }
 
+    /** O chefe puxa cabos dos circuitos, rompe as conexoes e deixa pontas vivas. */
+    private void drawTornWires(int width, int height, float bossX, float bossY,
+                               float bossSize, float reveal) {
+        if (reveal < 0.42f) return;
+        float pull = Math.min(1f, Math.max(0f, (reveal - 0.10f) / 0.48f));
+        float snap = Math.min(1f, Math.max(0f, (reveal - 0.60f) / 0.22f));
+        float vibration = VisualComfort.softEffects() ? 1.5f : 4f;
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        for (int side = -1; side <= 1; side += 2) {
+            for (int cable = 0; cable < 2; cable++) {
+                float anchorX = side < 0 ? width * 0.29f : width * 0.94f;
+                float anchorY = height * (cable == 0 ? 0.38f : 0.64f);
+                float gripX = bossX + side * bossSize * 0.34f;
+                float gripY = bossY + bossSize * (cable == 0 ? -0.13f : 0.16f);
+                float tipX = anchorX + (gripX - anchorX) * (1f - 0.75f * snap);
+                float tipY = anchorY + (gripY - anchorY) * (1f - 0.75f * snap)
+                        - snap * (22f + cable * 11f);
+                float bendX = anchorX + (tipX - anchorX) * (0.52f + 0.12f * pull);
+                float bendY = anchorY + (tipY - anchorY) * 0.52f +
+                        (float) Math.sin(animationTime * 13f + cable * 2f + side) *
+                                vibration * (1f - snap * 0.65f);
+                shapes.setColor(0.02f, 0.01f, 0.06f, 1f);
+                shapes.rectLine(anchorX, anchorY, bendX, bendY, 10f);
+                shapes.rectLine(bendX, bendY, tipX, tipY, 10f);
+                shapes.setColor(side < 0 ? ENERGY : CORRUPTION);
+                shapes.rectLine(anchorX, anchorY, bendX, bendY, 4f);
+                shapes.rectLine(bendX, bendY, tipX, tipY, 4f);
+                if (snap > 0f) {
+                    float looseX = gripX - side * snap * 28f;
+                    float looseY = gripY - snap * (26f + cable * 7f);
+                    shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b,
+                            0.9f - snap * 0.3f);
+                    shapes.rectLine(gripX, gripY, looseX, looseY, 5f);
+                    float spark = (float) Math.sin(animationTime * 18f + cable * 4f + side);
+                    if (spark > 0.12f) {
+                        shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b,
+                                (0.35f + 0.45f * spark) * snap);
+                        shapes.circle(tipX, tipY, 3f + spark * 3f);
+                        shapes.rectLine(tipX - 8f, tipY + 6f,
+                                tipX + 7f, tipY - 7f, 2f);
+                    }
+                }
+            }
+        }
+        shapes.end();
+    }
+
     private void drawWorld(int width, int height, float left, float right,
                            float upperY, float lowerY, float segment,
                            float eloX, float eloY, float mouthX, float mouthY) {
@@ -272,7 +322,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
         shapes.rect(0, 0, width, 109);
         float meterX = width * 0.72f;
         float meterY = height - 52f;
-        float meterWidth = width * 0.19f;
+        float meterWidth = width * 0.17f;
         shapes.setColor(TRACK);
         shapes.rect(meterX - 3f, meterY - 3f, meterWidth + 6f, 17f);
         for (int i = 0; i < PhaseThreeProgress.SHIELD_COUNT; i++) {
@@ -380,15 +430,13 @@ final class PhaseThreeGame extends ApplicationAdapter {
         font.setColor(MUTED);
         font.draw(batch, simulated ? "Modo sem sensor conectado" :
                 "Restaure os condutos e estabilize o nucleo", left, height - 71);
-        font.setColor(CORRUPTION);
-        font.draw(batch, "NO ZERO", width * 0.72f, height - 25f);
         font.setColor(MUTED);
         if (manageSource) font.draw(batch, "P: pausa   R: reiniciar", width - 235, height - 71);
         else font.draw(batch, "Espaco: opcoes", width - 210, 25);
         font.setColor(Color.WHITE);
-        font.draw(batch, "Escudos: " + progress.shields() + " / 3", left, height - 130);
+        font.draw(batch, "Escudos: " + progress.shields() + " / 3", left, height - 91);
         font.draw(batch, "Condutos: " + progress.restoredConduits() + " / 6",
-                right - 170, height - 130);
+                right - 170, height - 91);
         font.setColor(MUTED);
         font.draw(batch, status, left, 76);
         font.draw(batch, "Ritmo: " + Math.round(connected ? counter.rpm(now) : 0) + " giros/min",
