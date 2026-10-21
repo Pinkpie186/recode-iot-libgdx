@@ -17,6 +17,9 @@ final class CampaignGame extends ApplicationAdapter {
     private static final Color DANGER = new Color(0.92f, 0.37f, 0.61f, 1f);
     private static final Color CYAN = new Color(0.24f, 0.86f, 1f, 1f);
     private static final Color MUTED = new Color(0.72f, 0.80f, 0.93f, 1f);
+    private static final Color HEART_EMPTY = new Color(0.33f, 0.22f, 0.34f, 1f);
+    private static final Color HEART_LIGHT = new Color(1f, 0.64f, 0.78f, 1f);
+    private static final Color HEART_HOLLOW = new Color(0.07f, 0.07f, 0.13f, 1f);
 
     private final PedalSource source;
     private final boolean simulated;
@@ -135,6 +138,10 @@ final class CampaignGame extends ApplicationAdapter {
         active.render();
         progress.mascotShield().update(delta,
                 progress.status() == CampaignProgress.Status.RUNNING && !phasePaused());
+        if (combat.hitActive() && progress.pendingHits() > 0) {
+            progress.resolveHit();
+            if (progress.status() == CampaignProgress.Status.DEFEAT) lockActive(true);
+        }
 
         if (progress.status() == CampaignProgress.Status.RUNNING) {
             progress.observe();
@@ -148,6 +155,7 @@ final class CampaignGame extends ApplicationAdapter {
         if (progress.status() == CampaignProgress.Status.BETWEEN_PHASES) {
             transitionTime += delta;
             if (transitionTime >= INTERMISSION_REVEAL_SECONDS &&
+                    !combat.attackFlying() && progress.pendingHits() == 0 &&
                     (Gdx.input.isKeyJustPressed(Input.Keys.ENTER) || Gdx.input.justTouched())) {
                 active.dispose();
                 progress.advance();
@@ -531,29 +539,28 @@ final class CampaignGame extends ApplicationAdapter {
         }
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         for (int i = 0; i < CampaignProgress.INITIAL_INTEGRITY; i++) {
-            shapes.setColor(i < progress.integrity() ? SUCCESS : DANGER);
-            shapes.rect(width - 330f + i * 19f, height - 93f, 14f, 6f);
+            drawHeart(width - 86f + i * 27f, height - 27f,
+                    i < progress.integrity());
         }
         if (progress.phase() > 1) {
             MascotShield shield = progress.mascotShield();
             shapes.setColor(0.20f, 0.27f, 0.37f, 1f);
-            shapes.rect(width - 258f, height - 93f, 156f, 6f);
+            shapes.rect(width - 148f, height - 95f, 126f, 6f);
             float portion = shield.active()
                     ? shield.remainingSeconds() / MascotShield.DURATION_SECONDS
                     : shield.charge() / (float) MascotShield.REQUIRED_PAIRS;
             shapes.setColor(shield.active() ? CYAN : SUCCESS);
-            shapes.rect(width - 258f, height - 93f, 156f * Math.min(1f, portion), 6f);
+            shapes.rect(width - 148f, height - 95f, 126f * Math.min(1f, portion), 6f);
         }
         shapes.end();
         batch.begin();
         font.getData().setScale(0.95f);
         font.setColor(Color.WHITE);
-        font.draw(batch, "Fase " + progress.phase() + "/3  |  Integridade " +
-                progress.integrity() + "/3  |  " + progress.totalTurns() + " giros",
-                width - 330f, height - 31f);
+        font.draw(batch, "Fase " + progress.phase() + "/3  |  " +
+                progress.totalTurns() + " giros", width - 330f, height - 26f);
         font.setColor(MUTED);
         font.draw(batch, "Fragmentos de energia: " + progress.totalFragments() + "/9",
-                width - 330f, height - 53f);
+                width - 330f, height - 72f);
         if (progress.phase() > 1) {
             MascotShield shield = progress.mascotShield();
             font.setColor(shield.active() ? CYAN : MUTED);
@@ -561,7 +568,7 @@ final class CampaignGame extends ApplicationAdapter {
                     ? "Escudo do mascote: " + (int) Math.ceil(shield.remainingSeconds()) + " s"
                     : "Mascote: " + shield.charge() + "/" + MascotShield.REQUIRED_PAIRS +
                     " pares regulares";
-            font.draw(batch, shieldText, width - 330f, height - 75f);
+            font.draw(batch, shieldText, width - 330f, height - 94f);
         }
         if (combat.hitActive() || combat.blockedActive()) {
             font.getData().setScale(1.6f);
@@ -577,6 +584,17 @@ final class CampaignGame extends ApplicationAdapter {
             drawResult(width, height);
         }
         Gdx.gl.glDisable(GL20.GL_BLEND);
+    }
+
+    private void drawHeart(float x, float y, boolean filled) {
+        shapes.setColor(filled ? DANGER : HEART_EMPTY);
+        shapes.circle(x - 5f, y + 3f, 7f);
+        shapes.circle(x + 5f, y + 3f, 7f);
+        shapes.triangle(x - 12f, y + 1f, x + 12f, y + 1f, x, y - 13f);
+        shapes.setColor(filled ? HEART_LIGHT : HEART_HOLLOW);
+        shapes.circle(x - 5f, y + 3f, 4f);
+        shapes.circle(x + 5f, y + 3f, 4f);
+        shapes.triangle(x - 9f, y, x + 9f, y, x, y - 9f);
     }
 
     private void drawIntermission(int width, int height) {
