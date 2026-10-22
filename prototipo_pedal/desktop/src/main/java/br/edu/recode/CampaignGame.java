@@ -12,6 +12,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 /** Campanha com orientacao entre fases, pausas livres e defesa do mascote. */
 final class CampaignGame extends ApplicationAdapter {
     private static final float INTERMISSION_REVEAL_SECONDS = 0.7f;
+    private static final float DEFEAT_RESTART_SECONDS = 3f;
     private static final Color SHADE = new Color(0.02f, 0.04f, 0.10f, 0.96f);
     private static final Color SUCCESS = new Color(0.31f, 0.91f, 0.68f, 1f);
     private static final Color DANGER = new Color(0.92f, 0.37f, 0.61f, 1f);
@@ -35,6 +36,7 @@ final class CampaignGame extends ApplicationAdapter {
     private CharacterSpriteSheet menuMascot;
     private CharacterSpriteSheet menuNoZero;
     private float transitionTime;
+    private float defeatRestartTime;
     private float menuTime;
     private boolean onTitle = true;
     private boolean briefing;
@@ -165,6 +167,18 @@ final class CampaignGame extends ApplicationAdapter {
                 lockActive(true);
                 active.render();
                 drawBriefing();
+                return;
+            }
+        }
+        if (progress.status() == CampaignProgress.Status.DEFEAT &&
+                !combat.attackFlying() && !combat.hitActive()) {
+            defeatRestartTime += delta;
+            if (defeatRestartTime >= DEFEAT_RESTART_SECONDS) {
+                newCampaign();
+                briefing = false;
+                lockActive(false);
+                active.render();
+                drawCampaignHud();
                 return;
             }
         }
@@ -313,6 +327,7 @@ final class CampaignGame extends ApplicationAdapter {
         counter = new PedalCounter();
         combat = new CombatVisuals();
         transitionTime = 0f;
+        defeatRestartTime = 0f;
         observedAttackSequence = 0;
         onTitle = false;
         briefing = true;
@@ -668,7 +683,14 @@ final class CampaignGame extends ApplicationAdapter {
         font.draw(batch, "Integridade " + progress.integrity() + "/3   |   Fragmentos " +
                 progress.totalFragments() + "/9", width * 0.19f, height * 0.22f);
         font.setColor(Color.WHITE);
-        font.draw(batch, "R: nova campanha   Espaco: opcoes", width * 0.19f, height * 0.175f);
+        if (victory) {
+            font.draw(batch, "R: nova campanha   Espaco: opcoes", width * 0.19f,
+                    height * 0.175f);
+        } else {
+            int seconds = (int) Math.ceil(DEFEAT_RESTART_SECONDS - defeatRestartTime);
+            font.draw(batch, "Recomecando em " + seconds + " s   |   R: agora   Espaco: opcoes",
+                    width * 0.19f, height * 0.175f);
+        }
         batch.end();
     }
 
