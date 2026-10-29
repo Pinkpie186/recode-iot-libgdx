@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import java.util.Arrays;
 
 /** Rede Instavel: ELO estabiliza nos enquanto No Zero corrompe o sinal. */
 final class PhaseTwoGame extends ApplicationAdapter {
@@ -19,6 +20,8 @@ final class PhaseTwoGame extends ApplicationAdapter {
     private static final Color RESTORED = new Color(0.31f, 0.91f, 0.68f, 1f);
     private static final Color CORRUPTION = new Color(0.84f, 0.20f, 0.76f, 1f);
     private static final Color MUTED = new Color(0.72f, 0.79f, 0.91f, 1f);
+    private static final String[] STRUCTURE_NAMES = {"ANTENA", "REFLETOR", "FILTRO"};
+    private static final float[] NAME_OFFSETS = {26f, 34f, 23f};
 
     private final PedalSource source;
     private final boolean simulated;
@@ -29,6 +32,8 @@ final class PhaseTwoGame extends ApplicationAdapter {
     private final CombatVisuals combat;
     private final EnergyFragments fragments;
     private final StageMotion motion = new StageMotion();
+    private final float[] nodeBuild = new float[PhaseTwoProgress.NODE_COUNT];
+    private final float[] nodeFlash = new float[PhaseTwoProgress.NODE_COUNT];
     private SpriteBatch batch;
     private ShapeRenderer shapes;
     private BitmapFont font;
@@ -96,6 +101,8 @@ final class PhaseTwoGame extends ApplicationAdapter {
         if (manageSource && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             progress.restart();
             energyPulse = nodePulse = feedbackSeconds = 0f;
+            Arrays.fill(nodeBuild, 0f);
+            Arrays.fill(nodeFlash, 0f);
             bossRevealSeconds = 0f;
             movementFeedback = "";
             motion.reset();
@@ -106,14 +113,18 @@ final class PhaseTwoGame extends ApplicationAdapter {
             int turns = counter.accept(frame, now);
             if (turns > 0 && !campaignLocked && !progress.isPaused() && !progress.isComplete()) {
                 int pairsBefore = progress.stablePairs();
+                int nodesBefore = progress.nodes();
                 int repaired = progress.acceptTurns(turns, frame.lastCycleMillis);
                 boolean shieldStarted = shield.acceptTurns(turns, frame.lastCycleMillis);
                 if (shieldStarted) combat.shieldStarted();
                 energyPulse = 1f;
-                if (repaired > 0) nodePulse = 1f;
+                if (repaired > 0) {
+                    nodePulse = 1f;
+                    for (int i = nodesBefore; i < progress.nodes(); i++) nodeFlash[i] = 1f;
+                }
                 positiveFeedback = repaired > 0 || shieldStarted ||
                         progress.stablePairs() > pairsBefore;
-                movementFeedback = repaired > 0 ? "No estabilizado!"
+                movementFeedback = repaired > 0 ? "Estrutura estabilizada!"
                         : shieldStarted ? "Escudo ativo por 15 s."
                         : progress.stablePairs() > pairsBefore ? "Ritmo regular! Continue."
                         : pairsBefore > 0 ? "Ritmo mudou. Retome com calma."
@@ -133,6 +144,13 @@ final class PhaseTwoGame extends ApplicationAdapter {
         energyPulse = Math.max(0f, energyPulse - delta * 2.4f);
         nodePulse = Math.max(0f, nodePulse - delta * 1.2f);
         if (!progress.isPaused()) feedbackSeconds = Math.max(0f, feedbackSeconds - delta);
+        if (!progress.isPaused() && (!campaignLocked || progress.isComplete())) {
+            for (int i = 0; i < PhaseTwoProgress.NODE_COUNT; i++) {
+                if (i < progress.nodes())
+                    nodeBuild[i] = Math.min(1f, nodeBuild[i] + delta * 1.2f);
+                nodeFlash[i] = Math.max(0f, nodeFlash[i] - delta * 1.1f);
+            }
+        }
 
         int width = Gdx.graphics.getWidth();
         int height = Gdx.graphics.getHeight();
@@ -221,19 +239,11 @@ final class PhaseTwoGame extends ApplicationAdapter {
 
         for (int i = 0; i < PhaseTwoProgress.NODE_COUNT; i++) {
             float x = left + segment * (i + 1);
-            boolean restored = i < progress.nodes();
             boolean current = i == progress.nodes() && !progress.isComplete();
-            shapes.setColor(restored ? RESTORED : current && progress.interferenceActive()
-                    ? CORRUPTION : TRACK);
-            shapes.circle(x, y, 24);
-            shapes.setColor(BACKGROUND);
-            shapes.circle(x, y, 16);
-            shapes.setColor(restored ? RESTORED : current ? ENERGY : TRACK);
-            shapes.circle(x, y, 8);
-            if (restored && nodePulse > 0f && i == progress.nodes() - 1) {
-                shapes.setColor(RESTORED.r, RESTORED.g, RESTORED.b, nodePulse * 0.3f);
-                shapes.circle(x, y, 28 + (1f - nodePulse) * 30);
-            }
+            float charge = i < progress.nodes() ? 1f : current
+                    ? progress.nodeTurns() / (float) PhaseTwoProgress.TURNS_PER_NODE : 0f;
+            NetworkStructureVisuals.draw(shapes, i, x, y, nodeBuild[i], nodeFlash[i],
+                    charge, current && progress.interferenceActive(), animationTime);
         }
 
         shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b, 0.16f + energyPulse * 0.20f);
@@ -292,12 +302,12 @@ final class PhaseTwoGame extends ApplicationAdapter {
         font.draw(batch, simulated ? "Modo sem sensor conectado" :
                 "Mantenha seu ritmo confortavel para estabilizar a rede", left, height - 71);
         font.setColor(Color.WHITE);
-        font.draw(batch, "Nos: " + progress.nodes() + " / 3", left, height - 130);
+        font.draw(batch, "Estruturas: " + progress.nodes() + " / 3", left, height - 130);
         font.draw(batch, "Giros validos: " + progress.totalTurns(), right - 250, height - 130);
         for (int i = 0; i < PhaseTwoProgress.NODE_COUNT; i++) {
             float x = left + segment * (i + 1);
             font.setColor(i < progress.nodes() ? RESTORED : MUTED);
-            font.draw(batch, "N" + (i + 1), x - 12, y - 41);
+            font.draw(batch, STRUCTURE_NAMES[i], x - NAME_OFFSETS[i], y - 55);
         }
         if (!progress.isPaused() && !progress.isComplete()) {
             font.setColor(CORRUPTION);
@@ -309,7 +319,7 @@ final class PhaseTwoGame extends ApplicationAdapter {
         font.draw(batch, "Ritmo: " + Math.round(connected ? counter.rpm(now) : 0) + " giros/min",
                 right - 165, 73);
         if (!progress.isComplete()) {
-            font.draw(batch, "No atual: " + Math.min(progress.nodeTurns(), PhaseTwoProgress.TURNS_PER_NODE)
+            font.draw(batch, "Estrutura atual: " + Math.min(progress.nodeTurns(), PhaseTwoProgress.TURNS_PER_NODE)
                     + "/8 giros; pares seguidos: " + Math.min(progress.stablePairs(), 2)
                     + "/2", left, 47);
             font.setColor(feedbackSeconds > 0f ? positiveFeedback ? RESTORED : MUTED
@@ -338,7 +348,7 @@ final class PhaseTwoGame extends ApplicationAdapter {
             font.setColor(Color.WHITE);
             font.draw(batch, "No Zero recuou para o Sistema Central.", width * 0.29f, height * 0.55f);
             font.setColor(MUTED);
-            font.draw(batch, "3 nos  |  " + progress.totalTurns() + " giros  |  " +
+            font.draw(batch, "3 estruturas  |  " + progress.totalTurns() + " giros  |  " +
                     Math.round(progress.movingSeconds()) + " s com movimento",
                     width * 0.27f, height * 0.45f);
             font.draw(batch, manageSource ? "R para jogar novamente"
