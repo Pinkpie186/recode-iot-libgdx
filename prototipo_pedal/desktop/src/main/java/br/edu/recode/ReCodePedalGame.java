@@ -8,16 +8,18 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import java.util.Arrays;
 
-/** Circuitos Basicos: cada giro valido energiza a trilha e repara os nos. */
+/** Circuitos Basicos: cada giro valido energiza a trilha e recompõe as estruturas. */
 final class ReCodePedalGame extends ApplicationAdapter {
     private static final Color BACKGROUND = new Color(0.035f, 0.055f, 0.11f, 1f);
     private static final Color PANEL = new Color(0.075f, 0.105f, 0.18f, 1f);
     private static final Color TRACK = new Color(0.16f, 0.21f, 0.32f, 1f);
     private static final Color ENERGY = new Color(0.18f, 0.80f, 0.94f, 1f);
     private static final Color REPAIRED = new Color(0.32f, 0.90f, 0.64f, 1f);
-    private static final Color CORRUPTED = new Color(0.82f, 0.30f, 0.43f, 1f);
     private static final Color MUTED_TEXT = new Color(0.70f, 0.79f, 0.88f, 1f);
+    private static final String[] STRUCTURE_NAMES = {"RELE", "PONTE", "NUCLEO"};
+    private static final float[] NAME_OFFSETS = {18f, 24f, 28f};
 
     private final PedalSource source;
     private final boolean simulated;
@@ -26,6 +28,8 @@ final class ReCodePedalGame extends ApplicationAdapter {
     private final boolean manageSource;
     private final EnergyFragments fragments;
     private final StageMotion motion = new StageMotion();
+    private final float[] structureRepair = new float[PhaseOneProgress.REPAIR_AT.length];
+    private final float[] structureFlash = new float[PhaseOneProgress.REPAIR_AT.length];
     private SpriteBatch batch;
     private BitmapFont font;
     private ShapeRenderer shapes;
@@ -78,6 +82,8 @@ final class ReCodePedalGame extends ApplicationAdapter {
         if (manageSource && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             progress.restart();
             energyPulse = repairPulse = 0f;
+            Arrays.fill(structureRepair, 0f);
+            Arrays.fill(structureFlash, 0f);
             motion.reset();
         }
         PedalFrame frame;
@@ -88,8 +94,12 @@ final class ReCodePedalGame extends ApplicationAdapter {
                 int accepted = progress.addRotations(turns);
                 if (accepted == 0) continue;
                 energyPulse = 1f;
-                for (int threshold : PhaseOneProgress.REPAIR_AT) {
-                    if (previous < threshold && progress.rotations() >= threshold) repairPulse = 1f;
+                for (int i = 0; i < PhaseOneProgress.REPAIR_AT.length; i++) {
+                    int threshold = PhaseOneProgress.REPAIR_AT[i];
+                    if (previous < threshold && progress.rotations() >= threshold) {
+                        repairPulse = 1f;
+                        structureFlash[i] = 1f;
+                    }
                 }
             }
         }
@@ -99,7 +109,14 @@ final class ReCodePedalGame extends ApplicationAdapter {
         if (!campaignLocked) progress.update(deltaTime, connected && counter.rpm(now) > 0);
         energyPulse = Math.max(0f, energyPulse - deltaTime * 2.5f);
         repairPulse = Math.max(0f, repairPulse - deltaTime * 1.25f);
-        if (!progress.isPaused()) animationTime += deltaTime;
+        if (!progress.isPaused() && !campaignLocked) {
+            animationTime += deltaTime;
+            for (int i = 0; i < PhaseOneProgress.REPAIR_AT.length; i++) {
+                if (progress.rotations() >= PhaseOneProgress.REPAIR_AT[i])
+                    structureRepair[i] = Math.min(1f, structureRepair[i] + deltaTime * 1.2f);
+                structureFlash[i] = Math.max(0f, structureFlash[i] - deltaTime * 1.1f);
+            }
+        }
 
         int width = Gdx.graphics.getWidth();
         int height = Gdx.graphics.getHeight();
@@ -139,20 +156,11 @@ final class ReCodePedalGame extends ApplicationAdapter {
         shapes.setColor(ENERGY);
         shapes.rect(left, y - 5, Math.max(0, eloX - left), 10);
 
-        // Tres bloqueios visuais sao reparados em 5, 10 e 15 giros.
+        // Relé, ponte de dados e núcleo começam partidos e se recompõem em 5, 10 e 15 giros.
         for (int i = 0; i < PhaseOneProgress.REPAIR_AT.length; i++) {
             float x = left + (right - left) * PhaseOneProgress.REPAIR_AT[i] / PhaseOneProgress.TARGET_ROTATIONS;
-            boolean repaired = progress.rotations() >= PhaseOneProgress.REPAIR_AT[i];
-            shapes.setColor(repaired ? REPAIRED : CORRUPTED);
-            shapes.rect(x - 20, y - 20, 40, 40);
-            shapes.setColor(BACKGROUND);
-            shapes.rect(x - 12, y - 12, 24, 24);
-            shapes.setColor(repaired ? REPAIRED : CORRUPTED);
-            shapes.rect(x - 5, y - 5, 10, 10);
-            if (repaired && repairPulse > 0f && progress.rotations() == PhaseOneProgress.REPAIR_AT[i]) {
-                shapes.setColor(REPAIRED.r, REPAIRED.g, REPAIRED.b, repairPulse * 0.35f);
-                shapes.circle(x, y, 28 + (1f - repairPulse) * 28);
-            }
+            RepairStructureVisuals.draw(shapes, i, x, y,
+                    structureRepair[i], structureFlash[i], animationTime);
         }
 
         shapes.setColor(progress.isComplete() ? REPAIRED : TRACK);
@@ -204,11 +212,11 @@ final class ReCodePedalGame extends ApplicationAdapter {
 
         font.setColor(Color.WHITE);
         font.draw(batch, "Giros: " + progress.rotations() + " / " + PhaseOneProgress.TARGET_ROTATIONS, left, height - 130);
-        font.draw(batch, "Circuitos: " + progress.repairedCircuits() + " / 3", right - 195, height - 130);
+        font.draw(batch, "Estruturas: " + progress.repairedCircuits() + " / 3", right - 230, height - 130);
         for (int i = 0; i < PhaseOneProgress.REPAIR_AT.length; i++) {
             float x = left + (right - left) * PhaseOneProgress.REPAIR_AT[i] / PhaseOneProgress.TARGET_ROTATIONS;
             font.setColor(progress.rotations() >= PhaseOneProgress.REPAIR_AT[i] ? REPAIRED : MUTED_TEXT);
-            font.draw(batch, "C" + (i + 1), x - 12, y - 42);
+            font.draw(batch, STRUCTURE_NAMES[i], x - NAME_OFFSETS[i], y - 48);
         }
 
         font.setColor(MUTED_TEXT);
@@ -217,7 +225,13 @@ final class ReCodePedalGame extends ApplicationAdapter {
         if (!progress.isComplete()) {
             String rhythm = rpm <= 0 ? "Aguardando movimento" : "Movimento detectado";
             font.draw(batch, rhythm + "  |  " + Math.round(rpm) + " giros/min", right - 300, 70);
-            font.draw(batch, "Proximo objetivo: " + progress.nextRepairAt() + " giros", left, 42);
+            if (progress.repairedCircuits() == STRUCTURE_NAMES.length) {
+                font.draw(batch, "Continue ate 20 giros para concluir", left, 42);
+            } else {
+                int next = progress.repairedCircuits();
+                font.draw(batch, "Proxima estrutura: " + STRUCTURE_NAMES[next] +
+                        " em " + progress.nextRepairAt() + " giros", left, 42);
+            }
             font.draw(batch, manageSource ? "P/Espaco: pausa   R: reiniciar"
                     : "Espaco: opcoes", right - 390, 42);
         }
@@ -233,12 +247,12 @@ final class ReCodePedalGame extends ApplicationAdapter {
         } else if (progress.isComplete()) {
             font.getData().setScale(1.9f);
             font.setColor(REPAIRED);
-            font.draw(batch, "Circuitos Basicos restaurados!", width * 0.24f, height * 0.63f);
+            font.draw(batch, "Estruturas restauradas!", width * 0.29f, height * 0.63f);
             font.getData().setScale(1.2f);
             font.setColor(Color.WHITE);
             font.draw(batch, "ELO recuperou a energia desta area.", width * 0.29f, height * 0.54f);
             font.setColor(MUTED_TEXT);
-            font.draw(batch, "3 circuitos  |  " + progress.rotations() + " giros  |  " +
+            font.draw(batch, "3 estruturas  |  " + progress.rotations() + " giros  |  " +
                     Math.round(progress.activeSeconds()) + " s com movimento", width * 0.29f, height * 0.45f);
             font.draw(batch, manageSource ? "R para jogar novamente"
                     : "Enter: proxima fase quando estiver pronto", width * 0.28f, height * 0.36f);
