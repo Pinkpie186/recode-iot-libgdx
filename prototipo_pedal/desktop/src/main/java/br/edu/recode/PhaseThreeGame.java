@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import java.util.Arrays;
 
 /** Sistema Central: ELO repara rotas e estabiliza os escudos de No Zero. */
 final class PhaseThreeGame extends ApplicationAdapter {
@@ -29,6 +30,8 @@ final class PhaseThreeGame extends ApplicationAdapter {
     private final CombatVisuals combat;
     private final EnergyFragments fragments;
     private final StageMotion motion = new StageMotion();
+    private final float[] conduitBuild = new float[PhaseThreeProgress.SHIELD_COUNT];
+    private final float[] conduitFlash = new float[PhaseThreeProgress.SHIELD_COUNT];
     private SpriteBatch batch;
     private ShapeRenderer shapes;
     private BitmapFont font;
@@ -96,6 +99,8 @@ final class PhaseThreeGame extends ApplicationAdapter {
         if (manageSource && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             progress.restart();
             energyPulse = shieldPulse = routePulse = wrongRoutePulse = 0f;
+            Arrays.fill(conduitBuild, 0f);
+            Arrays.fill(conduitFlash, 0f);
             displayRouteY = Float.NaN;
             motion.reset();
             bossRevealSeconds = 0f;
@@ -106,11 +111,16 @@ final class PhaseThreeGame extends ApplicationAdapter {
             int turns = counter.accept(frame, now);
             if (turns > 0 && !campaignLocked && !progress.isPaused() && !progress.isComplete()) {
                 int routeBefore = progress.activeRoute();
+                int shieldsBefore = progress.shields();
                 boolean atSwitch = progress.step() == PhaseThreeProgress.Step.SWITCH;
                 int restored = progress.acceptTurns(turns, frame.lastCycleMillis, frame.direction);
                 if (shield.acceptTurns(turns, frame.lastCycleMillis)) combat.shieldStarted();
                 energyPulse = 1f;
-                if (restored > 0) shieldPulse = 1f;
+                if (restored > 0) {
+                    shieldPulse = 1f;
+                    for (int i = shieldsBefore; i < progress.shields(); i++)
+                        conduitFlash[i] = 1f;
+                }
                 if (!progress.isComplete() && progress.activeRoute() != routeBefore) routePulse = 1f;
                 if (atSwitch && progress.step() == PhaseThreeProgress.Step.SWITCH)
                     wrongRoutePulse = 1.4f;
@@ -130,6 +140,13 @@ final class PhaseThreeGame extends ApplicationAdapter {
         shieldPulse = Math.max(0f, shieldPulse - delta * 1.15f);
         routePulse = Math.max(0f, routePulse - delta * 1.15f);
         wrongRoutePulse = Math.max(0f, wrongRoutePulse - delta);
+        if (!progress.isPaused() && (!campaignLocked || progress.isComplete())) {
+            for (int i = 0; i < PhaseThreeProgress.SHIELD_COUNT; i++) {
+                if (i < progress.shields())
+                    conduitBuild[i] = Math.min(1f, conduitBuild[i] + delta * 1.15f);
+                conduitFlash[i] = Math.max(0f, conduitFlash[i] - delta * 1.05f);
+            }
+        }
 
         int width = Gdx.graphics.getWidth();
         int height = Gdx.graphics.getHeight();
@@ -343,21 +360,14 @@ final class PhaseThreeGame extends ApplicationAdapter {
 
         for (int i = 0; i < PhaseThreeProgress.SHIELD_COUNT; i++) {
             float x = left + segment * (i + 1);
-            boolean restored = i < progress.shields();
-            for (int route = 0; route < 2; route++) {
-                float y = route == 0 ? upperY : lowerY;
-                boolean active = i == progress.shields() && route == progress.activeRoute();
-                shapes.setColor(restored ? RESTORED : active ? ENERGY : TRACK);
-                shapes.circle(x, y, 18);
-                shapes.setColor(BACKGROUND);
-                shapes.circle(x, y, 11);
-                shapes.setColor(restored ? RESTORED : active ? ENERGY : TRACK);
-                shapes.circle(x, y, 5);
-            }
-            if (restored && shieldPulse > 0f && i == progress.shields() - 1) {
-                shapes.setColor(RESTORED.r, RESTORED.g, RESTORED.b, shieldPulse * 0.30f);
-                shapes.circle(x, (upperY + lowerY) / 2f, 38 + (1f - shieldPulse) * 24);
-            }
+            boolean current = i == progress.shields() && !progress.isComplete();
+            float charge = i < progress.shields() ? 1f : current
+                    ? Math.min(1f, progress.shieldTurns() /
+                        (float) PhaseThreeProgress.MIN_TURNS_PER_SHIELD) : 0f;
+            CoreConduitVisuals.draw(shapes, x, upperY, lowerY,
+                    conduitBuild[i], conduitFlash[i],
+                    current && progress.routeChanged(), progress.activeRoute(),
+                    charge, animationTime);
         }
 
         shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b, 0.17f + energyPulse * 0.20f);
