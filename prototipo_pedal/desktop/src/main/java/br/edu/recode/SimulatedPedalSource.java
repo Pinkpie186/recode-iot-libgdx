@@ -29,11 +29,14 @@ final class SimulatedPedalSource implements PedalSource {
             long rotations = elapsedMs / 1_000L; // Um giro detectado por segundo.
             long lastCycleMs = rotations * 1_000L;
             int direction = rotations == 0 ? 0 : rotations % 2 == 1 ? -1 : 1;
+            float angleDeg = rotations == 0 || elapsedMs % 1_000L >= 700L
+                    ? 0f : direction * 35f;
             String line = "{\"v\":2,\"seq\":" + sequence++
                     + ",\"ms\":" + elapsedMs
                     + ",\"mode\":\"forearm\",\"movement\":" + rotations
                     + ",\"lastMovementMs\":" + lastCycleMs
                     + ",\"direction\":" + direction
+                    + ",\"angleDeg\":" + angleDeg
                     + ",\"state\":\"ok\"}";
             frames.add(PedalFrame.parse(line));
             lastFrameNanos = now;
