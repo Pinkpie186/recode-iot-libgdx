@@ -431,7 +431,8 @@ final class CampaignGame extends ApplicationAdapter {
                         : "Gire o antebraco para conduzir ELO.",
                 width * 0.12f, height * 0.68f);
         font.draw(batch, "Fase 2: mantenha giros regulares.", width * 0.12f, height * 0.59f);
-        font.draw(batch, "Fase 3: gire para baixo ou cima na chave.", width * 0.12f, height * 0.50f);
+        font.draw(batch, "Fase 3: segure a inclinacao na chave de rota.",
+                width * 0.12f, height * 0.50f);
         font.setColor(CYAN);
         font.draw(batch, "3 pares de giros regulares carregam o escudo.", width * 0.12f, height * 0.39f);
         font.draw(batch, "A protecao dura 15 segundos de jogo.", width * 0.12f, height * 0.32f);
@@ -468,7 +469,7 @@ final class CampaignGame extends ApplicationAdapter {
             objective = "Restaure o nucleo central";
             lines = new String[] {
                     "Combine giros individuais, ritmo e estabilidade.",
-                    "Na chave, gire para CIMA ou BAIXO para mudar de linha.",
+                    "Na chave, volte ao centro e incline para CIMA ou BAIXO.",
                     "O escudo protege ELO por 15 segundos de jogo."
             };
         }
@@ -715,4 +716,5 @@ final class CampaignGame extends ApplicationAdapter {
         batch.dispose();
     }
 }
+
 
