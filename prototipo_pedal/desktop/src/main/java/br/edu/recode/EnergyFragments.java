@@ -19,6 +19,11 @@ final class EnergyFragments {
     int collected() { return collected; }
 
     void draw(ShapeRenderer shapes, float left, float right, float y, float time) {
+        draw(shapes, left, right, y, time, true);
+    }
+
+    void draw(ShapeRenderer shapes, float left, float right, float y, float time,
+              boolean collectionPulse) {
         time = VisualComfort.ambientTime(time);
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         for (int i = 0; i < COUNT; i++) {
@@ -30,7 +35,7 @@ final class EnergyFragments {
                     taken ? 0.90f : 1f, taken ? 0.65f : 0.85f);
             shapes.triangle(x, y + bob + size, x + size, y + bob, x, y + bob - size);
             shapes.triangle(x, y + bob + size, x - size, y + bob, x, y + bob - size);
-            if (taken && i == collected - 1 && pulse > 0f) {
+            if (collectionPulse && taken && i == collected - 1 && pulse > 0f) {
                 shapes.setColor(0.35f, 0.95f, 0.88f, pulse * 0.30f);
                 shapes.circle(x, y + bob, 19f + (1f - pulse) * 30f);
             }
