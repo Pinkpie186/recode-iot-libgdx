@@ -59,13 +59,13 @@ final class CoreConduitVisuals {
 
         if (flash > 0f) {
             float spread = 1f - flash;
-            s.setColor(0.37f, 1f, 0.79f, flash * 0.18f);
-            s.circle(x, middle, 18f + spread * 54f);
             for (int i = 0; i < 8; i++) {
                 double angle = i * Math.PI / 4d;
                 s.setColor(0.82f, 1f, 0.92f, flash * 0.85f);
-                s.circle(x + (float) Math.cos(angle) * (22f + spread * 35f),
-                        middle + (float) Math.sin(angle) * (22f + spread * 35f), 2f);
+                float sparkX = x + (float) Math.cos(angle) * (22f + spread * 35f);
+                float sparkY = middle + (float) Math.sin(angle) * (22f + spread * 35f);
+                s.triangle(sparkX, sparkY + 3f, sparkX + 3f, sparkY,
+                        sparkX, sparkY - 3f);
             }
         }
     }
@@ -95,12 +95,17 @@ final class CoreConduitVisuals {
         s.setColor(0.94f, 0.24f, 0.76f, damage * flicker);
         s.rectLine(x - 8f, y + 3f, x - 1f - 5f * damage, y + 8f, 2.5f);
         s.rectLine(x + 8f, y - 3f, x + 1f + 5f * damage, y - 8f, 2.5f);
-        s.circle(x, y, 5f);
+        diamond(s, x, y, 5f);
         s.setColor(0.32f, 0.95f, 0.78f, energy);
         s.rect(x - 10f, y + 12f * side, 20f, 3f);
-        s.circle(x, y, 7f);
+        diamond(s, x, y, 7f);
         s.setColor(0.89f, 1f, 0.94f, energy);
-        s.circle(x - 2f, y + 2f, 2.5f);
+        diamond(s, x - 2f, y + 2f, 2.5f);
+    }
+
+    private static void diamond(ShapeRenderer s, float x, float y, float radius) {
+        s.triangle(x, y + radius, x + radius, y, x, y - radius);
+        s.triangle(x, y + radius, x - radius, y, x, y - radius);
     }
 
     private static float smooth(float v) {
