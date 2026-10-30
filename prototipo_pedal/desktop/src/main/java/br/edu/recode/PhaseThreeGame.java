@@ -13,6 +13,7 @@ import java.util.Arrays;
 /** Sistema Central: ELO repara rotas e estabiliza os escudos de No Zero. */
 final class PhaseThreeGame extends ApplicationAdapter {
     private static final float BOSS_REVEAL_SECONDS = 2.2f;
+    private static final float ROUTE_TRAVEL_SECONDS = 0.68f;
     private static final Color BACKGROUND = new Color(0.025f, 0.025f, 0.075f, 1f);
     private static final Color PANEL = new Color(0.035f, 0.045f, 0.12f, 0.94f);
     private static final Color TRACK = new Color(0.15f, 0.18f, 0.32f, 1f);
@@ -30,6 +31,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
     private final CombatVisuals combat;
     private final EnergyFragments fragments;
     private final StageMotion motion = new StageMotion();
+    private final RouteHoldGesture routeGesture = new RouteHoldGesture();
     private final float[] conduitBuild = new float[PhaseThreeProgress.SHIELD_COUNT];
     private final float[] conduitFlash = new float[PhaseThreeProgress.SHIELD_COUNT];
     private SpriteBatch batch;
@@ -42,11 +44,13 @@ final class PhaseThreeGame extends ApplicationAdapter {
     private float animationTime;
     private float energyPulse;
     private float shieldPulse;
-    private float routePulse;
+    private float routeTravelRemaining;
+    private float routeTravelStartY = Float.NaN;
     private float wrongRoutePulse;
     private float bossRevealSeconds;
     private float displayRouteY = Float.NaN;
     private boolean campaignLocked;
+    private boolean angleMissing;
 
     void setCampaignLocked(boolean locked) { campaignLocked = locked; }
 
@@ -94,11 +98,19 @@ final class PhaseThreeGame extends ApplicationAdapter {
 
     @Override public void render() {
         long now = System.nanoTime();
+        if (!signalAvailable(now)) {
+            routeGesture.reset();
+            angleMissing = false;
+        }
+        if (campaignLocked || progress.isPaused()) routeGesture.reset();
         if (manageSource && !campaignLocked && (Gdx.input.isKeyJustPressed(Input.Keys.P) ||
                 Gdx.input.isKeyJustPressed(Input.Keys.SPACE))) progress.togglePause();
         if (manageSource && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             progress.restart();
-            energyPulse = shieldPulse = routePulse = wrongRoutePulse = 0f;
+            energyPulse = shieldPulse = wrongRoutePulse = routeTravelRemaining = 0f;
+            routeTravelStartY = Float.NaN;
+            routeGesture.reset();
+            angleMissing = false;
             Arrays.fill(conduitBuild, 0f);
             Arrays.fill(conduitFlash, 0f);
             displayRouteY = Float.NaN;
@@ -109,10 +121,27 @@ final class PhaseThreeGame extends ApplicationAdapter {
         PedalFrame frame;
         while ((frame = source.poll()) != null) {
             int turns = counter.accept(frame, now);
-            if (turns > 0 && !campaignLocked && !progress.isPaused() && !progress.isComplete()) {
-                int routeBefore = progress.activeRoute();
+            if (campaignLocked || progress.isPaused() || progress.isComplete()) {
+                routeGesture.reset();
+                continue;
+            }
+            if (progress.step() == PhaseThreeProgress.Step.SWITCH) {
+                angleMissing = !Float.isFinite(frame.angleDeg);
+                if (turns > 0 && frame.direction != progress.requiredDirection())
+                    wrongRoutePulse = 1.4f;
+                if (routeGesture.accept(frame.deviceMillis, frame.angleDeg,
+                        progress.requiredDirection()) &&
+                        progress.acceptRouteHold(progress.requiredDirection(),
+                                frame.deviceMillis)) {
+                    routeTravelStartY = displayRouteY;
+                    routeTravelRemaining = ROUTE_TRAVEL_SECONDS;
+                    wrongRoutePulse = 0f;
+                }
+            } else {
+                routeGesture.reset();
+                angleMissing = false;
+                if (turns <= 0) continue;
                 int shieldsBefore = progress.shields();
-                boolean atSwitch = progress.step() == PhaseThreeProgress.Step.SWITCH;
                 int restored = progress.acceptTurns(turns, frame.lastCycleMillis, frame.direction);
                 if (shield.acceptTurns(turns, frame.lastCycleMillis)) combat.shieldStarted();
                 energyPulse = 1f;
@@ -121,15 +150,10 @@ final class PhaseThreeGame extends ApplicationAdapter {
                     for (int i = shieldsBefore; i < progress.shields(); i++)
                         conduitFlash[i] = 1f;
                 }
-                if (!progress.isComplete() && progress.activeRoute() != routeBefore) routePulse = 1f;
-                if (atSwitch && progress.step() == PhaseThreeProgress.Step.SWITCH)
-                    wrongRoutePulse = 1.4f;
-                else if (progress.activeRoute() != routeBefore) wrongRoutePulse = 0f;
             }
         }
         float delta = Gdx.graphics.getDeltaTime();
-        boolean connected = source.lastFrameNanos() >= 0 &&
-                now - source.lastFrameNanos() <= 2_000_000_000L;
+        boolean connected = signalAvailable(now);
         if (!campaignLocked) progress.update(delta, connected && counter.rpm(now) > 0);
         if (manageSource) shield.update(delta, !progress.isPaused() && !progress.isComplete());
         if (!progress.isPaused()) combat.update(delta);
@@ -138,7 +162,6 @@ final class PhaseThreeGame extends ApplicationAdapter {
             bossRevealSeconds = Math.min(BOSS_REVEAL_SECONDS, bossRevealSeconds + delta);
         energyPulse = Math.max(0f, energyPulse - delta * 2.4f);
         shieldPulse = Math.max(0f, shieldPulse - delta * 1.15f);
-        routePulse = Math.max(0f, routePulse - delta * 1.15f);
         wrongRoutePulse = Math.max(0f, wrongRoutePulse - delta);
         if (!progress.isPaused() && (!campaignLocked || progress.isComplete())) {
             for (int i = 0; i < PhaseThreeProgress.SHIELD_COUNT; i++) {
@@ -168,10 +191,16 @@ final class PhaseThreeGame extends ApplicationAdapter {
         float targetX = left + segment * fraction;
         float targetRouteY = progress.activeRoute() == 0 ? upperY : lowerY;
         if (Float.isNaN(displayRouteY)) displayRouteY = targetRouteY;
-        if (!progress.isPaused()) displayRouteY += (targetRouteY - displayRouteY) *
-                (1f - (float) Math.exp(-9f * Math.min(delta, 0.05f)));
+        if (routeTravelRemaining > 0f && !progress.isPaused()) {
+            routeTravelRemaining = Math.max(0f, routeTravelRemaining - delta);
+            float part = 1f - routeTravelRemaining / ROUTE_TRAVEL_SECONDS;
+            float ease = part * part * (3f - 2f * part);
+            displayRouteY = routeTravelStartY + (targetRouteY - routeTravelStartY) * ease;
+        }
         if (Math.abs(displayRouteY - targetRouteY) < 0.5f) displayRouteY = targetRouteY;
-        float eloY = displayRouteY;
+        float eloY = displayRouteY + (routeTravelRemaining > 0f
+                ? 7f * (float) Math.sin(Math.PI *
+                        (1f - routeTravelRemaining / ROUTE_TRAVEL_SECONDS)) : 0f);
         float targetJourney = Math.min(1f, fraction / PhaseThreeProgress.SHIELD_COUNT);
         motion.update(targetX, targetJourney, delta, progress.isPaused());
         float eloX = motion.x();
@@ -226,7 +255,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
         batch.end();
         if (!progress.isComplete())
             drawTornWires(width, height, bossX, bossY, bossSize, reveal);
-        fragments.draw(shapes, left, right, centerY + 105f, animationTime);
+        fragments.draw(shapes, left, right, centerY + 105f, animationTime, false);
         drawWorld(width, height, left, right, upperY, lowerY, segment,
                 eloX, eloY, mouthX, mouthY);
         drawSpritesAndText(width, height, left, right, upperY, lowerY, segment,
@@ -352,9 +381,6 @@ final class PhaseThreeGame extends ApplicationAdapter {
         shapes.setColor(TRACK);
         shapes.rect(left, upperY - 6, right - left, 12);
         shapes.rect(left, lowerY - 6, right - left, 12);
-        shapes.setColor(ENERGY);
-        shapes.rect(left, (progress.activeRoute() == 0 ? upperY : lowerY) - 4,
-                Math.max(0f, eloX - left), 8);
 
         if (!progress.isComplete()) drawRouteSwitch(left, segment, upperY, lowerY);
 
@@ -370,23 +396,18 @@ final class PhaseThreeGame extends ApplicationAdapter {
                     charge, animationTime);
         }
 
-        shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b, 0.17f + energyPulse * 0.20f);
-        shapes.circle(eloX, eloY, 30 + energyPulse * 11);
         combat.drawProjectile(shapes, mouthX, mouthY,
                 eloX, eloY + 12f, animationTime);
-        combat.draw(shapes, eloX, eloY + 12f, animationTime, shield);
-        if (routePulse > 0f && !progress.isComplete()) {
-            shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b, routePulse * 0.32f);
-            shapes.rect(eloX - 24, lowerY, 48, upperY - lowerY);
-        }
+        combat.drawCompact(shapes, eloX, eloY + 12f, animationTime, shield);
         if (progress.interferenceActive() && !progress.isPaused()) {
             shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b, 0.22f);
             for (int i = 1; i < 8; i++) {
                 float part = i / 8f;
-                shapes.circle(mouthX + (eloX - mouthX) * part,
-                        mouthY + (eloY + 12f - mouthY) * part, 2.5f);
+                float sparkX = mouthX + (eloX - mouthX) * part;
+                float sparkY = mouthY + (eloY + 12f - mouthY) * part;
+                shapes.triangle(sparkX, sparkY + 3f, sparkX + 3f, sparkY,
+                        sparkX, sparkY - 3f);
             }
-            shapes.circle(eloX, eloY + 12f, 7f);
         }
 
         if (progress.isPaused() || progress.isComplete()) {
@@ -402,16 +423,24 @@ final class PhaseThreeGame extends ApplicationAdapter {
         float x = left + segment * (progress.shields() + 1f / 3f);
         boolean waiting = progress.step() == PhaseThreeProgress.Step.SWITCH;
         float pulse = 0.5f + 0.5f * (float) Math.sin(animationTime * 5f);
-        shapes.setColor(waiting ? ENERGY : TRACK);
-        shapes.rectLine(x, upperY, x, lowerY, waiting ? 9f : 5f);
-        shapes.circle(x, upperY, waiting ? 12f + pulse * 4f : 8f);
-        shapes.circle(x, lowerY, waiting ? 12f + pulse * 4f : 8f);
+        shapes.setColor(waiting ? MUTED : TRACK);
+        shapes.rectLine(x, upperY, x, lowerY, waiting ? 4f : 3f);
+        for (int route = 0; route < 2; route++) {
+            float y = route == 0 ? upperY : lowerY;
+            shapes.triangle(x, y + 9f, x + 9f, y, x, y - 9f);
+            shapes.triangle(x, y + 9f, x - 9f, y, x, y - 9f);
+        }
         float blockedY = progress.shields() % 2 == 0 ? upperY : lowerY;
         shapes.setColor(CORRUPTION);
         shapes.rectLine(x + 18f, blockedY - 15f, x + 18f, blockedY + 15f, 5f);
         if (waiting) {
-            shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b, 0.18f + pulse * 0.25f);
-            shapes.circle(x, blockedY, 23f + pulse * 8f);
+            float targetY = progress.requiredDirection() < 0 ? lowerY : upperY;
+            shapes.setColor(RESTORED.r, RESTORED.g, RESTORED.b, 0.58f + pulse * 0.22f);
+            shapes.triangle(x - 14f, targetY + 5f, x - 5f, targetY,
+                    x - 14f, targetY - 5f);
+            float held = routeGesture.fraction();
+            if (held > 0f) shapes.rectLine(x, blockedY,
+                    x, blockedY + (targetY - blockedY) * held, 3f);
         }
     }
 
@@ -424,7 +453,8 @@ final class PhaseThreeGame extends ApplicationAdapter {
                         "Aguardando dados do ESP32" : source.error();
         batch.begin();
         if (!progress.isPaused() && !progress.isComplete()) {
-            int eloRow = combat.hitActive() ? 2 : shieldPulse > 0 ? 3 : motion.moving() ? 1 : 0;
+            int eloRow = combat.hitActive() ? 2 : shieldPulse > 0 ? 3 :
+                    routeTravelRemaining > 0f || motion.moving() ? 1 : 0;
             if (combat.hitActive()) batch.setColor(1f, 0.45f, 0.62f, 1f);
             elo.draw(batch, eloRow, animationTime, eloX + combat.hitOffset(animationTime),
                     eloY + 12 + motion.gait(animationTime), 88);
@@ -455,7 +485,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
             String sequence = progress.step() == PhaseThreeProgress.Step.PRECISION
                     ? "Precisao: " + progress.precisionTurns() + "/3 giros individuais"
                     : progress.step() == PhaseThreeProgress.Step.SWITCH
-                    ? "Chave de rota: gire para " +
+                    ? "Chave de rota: mantenha inclinado para " +
                         (progress.requiredDirection() < 0 ? "BAIXO" : "CIMA")
                     : progress.step() == PhaseThreeProgress.Step.RHYTHM
                     ? "Ritmo: " + progress.rhythmStreak() + "/2 pares seguidos"
@@ -464,10 +494,11 @@ final class PhaseThreeGame extends ApplicationAdapter {
                     left, 49);
             font.setColor(progress.interferenceActive() ? CORRUPTION : RESTORED);
             font.draw(batch, progress.step() == PhaseThreeProgress.Step.SWITCH ?
-                    wrongRoutePulse > 0f ? "Sentido oposto: gire para " +
+                    angleMissing ? "Inclinacao indisponivel: atualize o ESP32" :
+                    wrongRoutePulse > 0f ? "Sentido oposto: incline para " +
                             (progress.requiredDirection() < 0 ? "BAIXO" : "CIMA") :
-                            "No Zero bloqueou a passagem: gire o antebraco" :
-                    progress.routeChanged() ? "Desvio acionado por ELO" :
+                            "Na estacao: volte ao centro e segure a inclinacao" :
+                    progress.routeChanged() ? "ELO atravessou a estacao" :
                     "Rota " + (progress.activeRoute() == 0 ? "superior" : "inferior") + " ativa",
                     left, 25);
         }
@@ -506,5 +537,10 @@ final class PhaseThreeGame extends ApplicationAdapter {
         font.dispose();
         shapes.dispose();
         batch.dispose();
+    }
+
+    private boolean signalAvailable(long now) {
+        long last = source.lastFrameNanos();
+        return source.error().isEmpty() && last >= 0 && now - last <= 2_000_000_000L;
     }
 }
