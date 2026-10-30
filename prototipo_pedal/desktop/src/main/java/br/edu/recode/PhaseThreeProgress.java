@@ -6,15 +6,13 @@ final class PhaseThreeProgress {
 
     static final int SHIELD_COUNT = 3;
     static final int PRECISION_TURNS = 3;
-    static final int SWITCH_TURNS = 1;
     static final int RHYTHM_PAIRS = 2;
     static final int STABILITY_PAIRS = 3;
-    static final int MIN_TURNS_PER_SHIELD = 10;
+    static final int MIN_TURNS_PER_SHIELD = 9;
 
     private int shields;
     private int shieldTurns;
     private int precisionTurns;
-    private int switchTurns;
     private int rhythmStreak;
     private int stabilityStreak;
     private int stablePairsTotal;
@@ -25,13 +23,13 @@ final class PhaseThreeProgress {
     private long lastTurnMillis = -1;
     private long lastIntervalMillis = -1;
 
-    /** O gesto dirigido na chave de rota e separado da sequencia de precisao. */
+    /** Os giros de reparo nao acionam a chave de rota. */
     int acceptTurns(int turns, long lastCycleMillis) {
         return acceptTurns(turns, lastCycleMillis, 0);
     }
 
     int acceptTurns(int turns, long lastCycleMillis, int direction) {
-        if (paused || isComplete() || turns <= 0) return 0;
+        if (paused || isComplete() || turns <= 0 || step == Step.SWITCH) return 0;
         boolean steady = false;
         if (turns == 1 && lastTurnMillis >= 0 && lastCycleMillis > lastTurnMillis) {
             long interval = lastCycleMillis - lastTurnMillis;
@@ -60,17 +58,11 @@ final class PhaseThreeProgress {
                     // Um lote de giros nao informa o instante de cada movimento.
                     if (individual && ++precisionTurns >= PRECISION_TURNS) {
                         step = Step.SWITCH;
-                        switchTurns = 0;
                         rhythmStreak = 0;
                         lastIntervalMillis = -1;
                     }
                     break;
                 case SWITCH:
-                    if (individual && direction == requiredDirection() &&
-                            ++switchTurns >= SWITCH_TURNS) {
-                        step = Step.RHYTHM;
-                        lastIntervalMillis = -1;
-                    }
                     break;
                 case RHYTHM:
                     rhythmStreak = steady && individual ? rhythmStreak + 1 : 0;
@@ -84,7 +76,7 @@ final class PhaseThreeProgress {
                     if (stabilityStreak >= STABILITY_PAIRS) {
                         shields++;
                         restored++;
-                        shieldTurns = precisionTurns = switchTurns = rhythmStreak = stabilityStreak = 0;
+                        shieldTurns = precisionTurns = rhythmStreak = stabilityStreak = 0;
                         step = Step.PRECISION;
                         lastTurnMillis = lastIntervalMillis = -1;
                     }
@@ -94,6 +86,16 @@ final class PhaseThreeProgress {
             }
         }
         return restored;
+    }
+
+    /** A troca exige inclinacao sustentada, registrada separadamente dos giros. */
+    boolean acceptRouteHold(int direction, long gestureMillis) {
+        if (paused || isComplete() || step != Step.SWITCH || direction != requiredDirection())
+            return false;
+        step = Step.RHYTHM;
+        lastTurnMillis = gestureMillis;
+        lastIntervalMillis = -1L;
+        return true;
     }
 
     void update(float seconds, boolean movingWithSignal) {
@@ -109,7 +111,7 @@ final class PhaseThreeProgress {
     }
 
     void restart() {
-        shields = shieldTurns = precisionTurns = switchTurns = rhythmStreak = stabilityStreak = 0;
+        shields = shieldTurns = precisionTurns = rhythmStreak = stabilityStreak = 0;
         stablePairsTotal = totalTurns = 0;
         step = Step.PRECISION;
         paused = false;
@@ -120,7 +122,6 @@ final class PhaseThreeProgress {
     int shields() { return shields; }
     int shieldTurns() { return shieldTurns; }
     int precisionTurns() { return precisionTurns; }
-    int switchTurns() { return switchTurns; }
     int rhythmStreak() { return rhythmStreak; }
     int stabilityStreak() { return stabilityStreak; }
     int stablePairsTotal() { return stablePairsTotal; }
