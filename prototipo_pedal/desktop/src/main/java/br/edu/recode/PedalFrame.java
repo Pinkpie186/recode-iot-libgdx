@@ -9,14 +9,16 @@ final class PedalFrame {
     final long rotations;
     final long lastCycleMillis;
     final int direction;
+    final float angleDeg;
 
     private PedalFrame(long sequence, long deviceMillis, long rotations, long lastCycleMillis,
-                       int direction) {
+                       int direction, float angleDeg) {
         this.sequence = sequence;
         this.deviceMillis = deviceMillis;
         this.rotations = rotations;
         this.lastCycleMillis = lastCycleMillis;
         this.direction = direction;
+        this.angleDeg = angleDeg;
     }
 
     static PedalFrame parse(String line) {
@@ -35,10 +37,15 @@ final class PedalFrame {
         long rotations = number(root, "movement");
         long lastCycleMs = number(root, "lastMovementMs");
         long direction = number(root, "direction");
+        JsonValue angle = root.get("angleDeg");
+        if (angle != null && !angle.isNumber())
+            throw new IllegalArgumentException("invalid angleDeg");
+        float angleDeg = angle == null ? Float.NaN : angle.asFloat();
         if (sequence < 0 || ms < 0 || rotations < 0 || lastCycleMs < 0 || lastCycleMs > ms ||
-                direction < -1 || direction > 1)
+                direction < -1 || direction > 1 ||
+                angle != null && (!Float.isFinite(angleDeg) || Math.abs(angleDeg) > 180f))
             throw new IllegalArgumentException("invalid value");
-        return new PedalFrame(sequence, ms, rotations, lastCycleMs, (int) direction);
+        return new PedalFrame(sequence, ms, rotations, lastCycleMs, (int) direction, angleDeg);
     }
 
     private static long number(JsonValue root, String key) {
@@ -53,3 +60,4 @@ final class PedalFrame {
         return field.asString();
     }
 }
+
