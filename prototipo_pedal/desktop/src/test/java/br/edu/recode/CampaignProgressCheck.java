@@ -10,6 +10,7 @@ public final class CampaignProgressCheck {
         phaseTwoRequiresContinuousRhythm();
         phaseTwoBossAttacksEvenWithRegularRhythm();
         phaseThreeRequiresOrderedSequence();
+        routeSwitchRequiresHeldInclination();
         forearmFramesRequireSensorProtocol();
         sensorRecalibrationStartsFromNewBaseline();
         mascotShieldLastsFifteenPlayingSeconds();
@@ -41,16 +42,17 @@ public final class CampaignProgressCheck {
         require(run.integrity() == 3, "ritmo regular preserva integridade");
         run.advance();
 
-        for (int turn = 25; turn <= 54; turn++) {
-            int direction = run.third().step() == PhaseThreeProgress.Step.SWITCH
-                    ? run.third().requiredDirection() : turn % 2 == 0 ? 1 : -1;
-            run.third().acceptTurns(1, turn * 1000L, direction);
+        for (int turn = 25; turn <= 51; turn++) {
+            if (run.third().step() == PhaseThreeProgress.Step.SWITCH)
+                run.third().acceptRouteHold(run.third().requiredDirection(),
+                        (turn - 1) * 1000L);
+            run.third().acceptTurns(1, turn * 1000L, turn % 2 == 0 ? 1 : -1);
             run.third().update(0.5f, true);
             run.observe();
         }
         require(run.status() == CampaignProgress.Status.VICTORY, "vitoria apos a fase 3");
-        require(run.phase() == 3 && run.totalTurns() == 74, "total preservado");
-        require(run.turns(1) == 20 && run.turns(2) == 24 && run.turns(3) == 30,
+        require(run.phase() == 3 && run.totalTurns() == 71, "total preservado");
+        require(run.turns(1) == 20 && run.turns(2) == 24 && run.turns(3) == 27,
                 "resultados de cada fase preservados");
         require(run.objectives(1) == 3 && run.objectives(2) == 3 && run.objectives(3) == 3,
                 "objetivos preservados");
@@ -136,9 +138,13 @@ public final class CampaignProgressCheck {
         require(progress.step() == PhaseThreeProgress.Step.SWITCH &&
                 progress.activeRoute() == 0, "giro para cima nao leva a linha inferior");
         progress.acceptTurns(1, 7000, -1);
+        require(progress.step() == PhaseThreeProgress.Step.SWITCH &&
+                progress.activeRoute() == 0, "giro comum nao aciona a chave");
+        require(!progress.acceptRouteHold(1, 7000), "inclinacao oposta nao aciona a chave");
+        require(progress.acceptRouteHold(-1, 7000), "inclinacao sustentada aciona a chave");
         require(progress.step() == PhaseThreeProgress.Step.RHYTHM &&
                 progress.activeRoute() == 1 && progress.restoredConduits() == 1,
-                "giro para baixo aciona o desvio para a linha inferior");
+                "gesto para baixo aciona o desvio para a linha inferior");
         for (int turn = 8; turn <= 10; turn++) progress.acceptTurns(1, turn * 1000L, 1);
         require(progress.step() == PhaseThreeProgress.Step.STABILITY, "ritmo depois do desvio");
         progress.acceptTurns(1, 11000, -1);
@@ -155,14 +161,34 @@ public final class CampaignProgressCheck {
         require(progress.step() == PhaseThreeProgress.Step.SWITCH &&
                 progress.requiredDirection() == 1 && progress.activeRoute() == 1,
                 "segundo desvio pede giro para cima");
-        progress.acceptTurns(1, 17000, 1);
-        require(progress.activeRoute() == 0, "giro para cima leva a linha superior");
+        require(progress.acceptRouteHold(1, 17000), "gesto para cima aciona o segundo desvio");
+        require(progress.activeRoute() == 0, "inclinacao para cima leva a linha superior");
+    }
+
+    private static void routeSwitchRequiresHeldInclination() {
+        RouteHoldGesture gesture = new RouteHoldGesture();
+        require(!gesture.accept(1000, -35f, -1), "inclinacao anterior nao vale sem neutro");
+        require(!gesture.accept(1100, 0f, -1), "neutro arma a estacao");
+        require(!gesture.accept(1200, 35f, -1), "lado oposto nao vale");
+        require(!gesture.accept(1300, -35f, -1), "inicio da sustentacao");
+        require(!gesture.accept(1850, -35f, -1), "inclinacao breve nao vale");
+        require(gesture.accept(1950, -35f, -1), "sustentar 650 ms muda a linha");
+        require(!gesture.accept(2050, -35f, -1), "precisa voltar ao neutro entre estacoes");
+        require(!gesture.accept(2150, 0f, 1), "neutro rearma proxima estacao");
+        require(!gesture.accept(2250, 35f, 1), "inicio da subida");
+        require(gesture.accept(2900, 35f, 1), "sustentacao para cima funciona");
+        gesture.reset();
+        require(!gesture.accept(3000, Float.NaN, 1), "sem angulo nao ha desvio");
     }
 
     private static void forearmFramesRequireSensorProtocol() {
         String frame = "{\"v\":2,\"seq\":1,\"ms\":1000,\"mode\":\"forearm\"," +
                 "\"movement\":1,\"lastMovementMs\":900,\"direction\":-1,\"state\":\"ok\"}";
         require(PedalFrame.parse(frame).direction == -1, "direcao vem do sensor");
+        require(Float.isNaN(PedalFrame.parse(frame).angleDeg),
+                "quadro antigo sem inclinacao continua aceito");
+        require(PedalFrame.parse(frame.replace("\"state\"", "\"angleDeg\":-31.5,\"state\"")).angleDeg
+                == -31.5f, "inclinacao chega ao gesto da estacao");
         boolean rejected = false;
         try {
             PedalFrame.parse(frame.replace("\"forearm\"", "\"pedal\""));
@@ -290,3 +316,4 @@ public final class CampaignProgressCheck {
         if (!condition) throw new AssertionError(description);
     }
 }
+
