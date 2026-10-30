@@ -32,6 +32,7 @@ final class KeyboardPedalSource implements PedalSource {
         boolean f = Gdx.input.isKeyPressed(Input.Keys.F);
         boolean up = Gdx.input.isKeyPressed(Input.Keys.UP);
         boolean down = Gdx.input.isKeyPressed(Input.Keys.DOWN);
+        float angleDeg = down && !up ? -35f : up && !down ? 35f : 0f;
         int requested = down && !downHeld ? -1 : up && !upHeld ? 1 :
                 f && !fHeld ? (direction < 0 ? 1 : -1) : 0;
         fHeld = f;
@@ -52,6 +53,7 @@ final class KeyboardPedalSource implements PedalSource {
                 + ",\"mode\":\"forearm\",\"movement\":" + rotations
                 + ",\"lastMovementMs\":" + lastCycleMillis
                 + ",\"direction\":" + direction
+                + ",\"angleDeg\":" + angleDeg
                 + ",\"state\":\"ok\"}");
     }
 
