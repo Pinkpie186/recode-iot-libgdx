@@ -55,7 +55,7 @@ Durante o jogo, `Espaço`, `P` ou `Esc` abre a pausa. Ela permite continuar, vol
 
 1. **Circuitos Básicos:** os giros de antebraço conduzem ELO por três reparos e fragmentos de energia.
 2. **Rede Instável:** os nós são estabilizados por sequências de giros regulares. O jogo compara cada intervalo com o anterior do próprio jogador; não há velocidade mínima.
-3. **Sistema Central:** Nó Zero surge de uma ruptura nos circuitos no início do confronto e permanece visível como chefe da arena. Ele bloqueia alternadamente as linhas. Depois de três giros individuais de precisão, ELO para na chave. **Gire para a posição inferior para descer**, ou para a **superior para subir**, conforme a indicação na tela. Um giro no sentido oposto mantém ELO na linha atual. Após acionar a chave, complete os pares de ritmo e estabilidade para restaurar o escudo e avançar.
+3. **Sistema Central:** Nó Zero surge de uma ruptura nos circuitos no início do confronto e permanece visível como chefe da arena. Ele bloqueia alternadamente as linhas. Depois de três giros individuais de precisão, ELO para na chave. Volte o antebraço ao centro e **mantenha a inclinação inferior ou superior por 0,65 segundo** para descer ou subir, conforme a indicação na tela. Um giro breve não aciona a chave. No teclado, solte e mantenha pressionada a seta correspondente. Após atravessar a estação, complete os pares de ritmo e estabilidade para restaurar o escudo e avançar.
 
 Na Rede Instável e no Sistema Central, três pares de giros regulares carregam o escudo do mascote por **15 segundos de jogo**. Ele bloqueia os ataques de Nó Zero. O resultado final preserva os giros, objetivos, pares regulares, fragmentos e tempo de movimento de cada fase.
 
@@ -68,6 +68,7 @@ Para conferir a lógica sem abrir a janela, execute `gradle verifyCampaign` na p
 1. Ligue o ESP32 e observe o monitor serial em 115200 baud. `state` deve passar de `calibrating` para `ok` com o antebraço estável.
 2. Volte ao centro entre giros. Confira que cada gesto aumenta `movement` uma vez e que `direction` corresponde ao lado mostrado no jogo.
 3. Abra a campanha na porta serial, gire o antebraço em ritmo confortável e confira a progressão e a indicação de movimentos por minuto.
-4. Na fase 3, pare na chave de rota; confirme que o giro pedido muda ELO de linha e o giro no sentido contrário não muda.
+4. Na fase 3, pare na chave de rota, volte ao centro e sustente a inclinação pedida por pelo menos 0,65 segundo. Confirme que ELO muda de linha; uma inclinação breve ou no sentido contrário não deve mudar a rota.
 
 O MPU6050 contém acelerômetro e giroscópio, mas este firmware usa **somente o acelerômetro** para estimar a inclinação em relação à postura inicial. A calibração e o resultado dependem da posição e da fixação do módulo; se o antebraço ou o sensor forem montados em outro eixo, ajuste a orientação e repita a conferência.
+
