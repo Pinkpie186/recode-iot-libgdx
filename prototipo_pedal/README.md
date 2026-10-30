@@ -33,6 +33,8 @@ O ESP32 envia uma linha JSON a cada 100 ms em **115200 baud**:
 
 `movement` é o total acumulado de giros; `lastMovementMs` é o instante do último giro; `direction` vale `-1` para a posição inferior, `1` para a superior e `0` antes do primeiro gesto. Durante a calibração, `state` vale `calibrating`; se o MPU6050 não responder, vale `sensor_error`. O jogo mostra essas condições e só pontua quadros com `state: ok`. O firmware antigo de pedal não é aceito.
 
+Na fase 3, o campo `angleDeg` é necessário para reconhecer a inclinação sustentada na estação. Se esse campo não chegar, o jogo mostra um aviso e não troca ELO de linha.
+
 As referências de registradores e alimentação são o [mapa de registradores do MPU6050](https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Register-Map1.pdf) e a [especificação do fabricante](https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Datasheet.pdf).
 
 ## Jogar
