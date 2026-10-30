@@ -20,6 +20,12 @@ final class CombatVisuals {
     void blocked() { blockedSeconds = 0.75f; }
     void shieldStarted() { shieldStartSeconds = 0.8f; }
 
+    void reset() {
+        hitSeconds = blockedSeconds = shieldStartSeconds = 0f;
+        attackFlightSeconds = impactBeamSeconds = 0f;
+        attackBlocked = false;
+    }
+
     void launchHit() { launch(false); }
     void launchBlocked() { launch(true); }
 
@@ -165,6 +171,43 @@ final class CombatVisuals {
                         y + (float) Math.sin(angle) * radius,
                         x + (float) Math.cos(angle + 0.19f) * radius,
                         y + (float) Math.sin(angle + 0.19f) * radius, 3f);
+            }
+        }
+    }
+
+    /** Defesa discreta da fase 3: facetas vazadas deixam ELO e o chefe visiveis. */
+    void drawCompact(ShapeRenderer shapes, float x, float y, float time,
+                     MascotShield shield) {
+        time = VisualComfort.ambientTime(time);
+        if (shield.active() || blockedSeconds > 0f || shieldStartSeconds > 0f) {
+            float feedback = Math.max(blockedSeconds / 0.75f,
+                    shieldStartSeconds / 0.8f);
+            float radius = 39f + feedback * 5f;
+            float opacity = shield.active() ? 0.72f : feedback * 0.72f;
+            shapes.setColor(GUARD.r, GUARD.g, GUARD.b, opacity);
+            for (int i = 0; i < 6; i++) {
+                double a = i * Math.PI / 3d - Math.PI / 6d;
+                double b = (i + 1) * Math.PI / 3d - Math.PI / 6d;
+                shapes.rectLine(x + (float) Math.cos(a) * radius,
+                        y + (float) Math.sin(a) * radius,
+                        x + (float) Math.cos(b) * radius,
+                        y + (float) Math.sin(b) * radius, 2.2f);
+            }
+            if (shield.active()) {
+                float side = (float) Math.sin(time * 4f) * 0.16f;
+                shapes.setColor(0.85f, 1f, 0.95f, 0.55f + side);
+                shapes.triangle(x, y + radius + 5f, x + 5f, y + radius,
+                        x, y + radius - 5f);
+            }
+        }
+        if (hitActive()) {
+            float pulse = hitStrength();
+            shapes.setColor(HIT.r, HIT.g, HIT.b, pulse * 0.85f);
+            for (int side = -1; side <= 1; side += 2) {
+                shapes.rectLine(x + side * 27f, y - 25f,
+                        x + side * (30f + (1f - pulse) * 17f), y - 8f, 3f);
+                shapes.rectLine(x + side * 27f, y + 25f,
+                        x + side * (30f + (1f - pulse) * 17f), y + 8f, 3f);
             }
         }
     }
