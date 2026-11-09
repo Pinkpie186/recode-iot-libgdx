@@ -189,6 +189,7 @@ final class CampaignGame extends ApplicationAdapter {
                     (Gdx.input.isKeyJustPressed(Input.Keys.ENTER) || Gdx.input.justTouched())) {
                 audio.confirm();
                 active.dispose();
+                if (progress.phase() == 2) combat.reset();
                 progress.advance();
                 transitionTime = 0f;
                 briefing = true;
@@ -561,7 +562,7 @@ final class CampaignGame extends ApplicationAdapter {
             lines = new String[] {
                     "Combine giros individuais, ritmo e estabilidade.",
                     "A rota muda automaticamente apos 3 giros individuais.",
-                    "O escudo protege ELO por 15 segundos de jogo."
+                    "Vidas restauradas: 3 coracoes. Escudo: 15 segundos."
             };
         }
         Gdx.gl.glEnable(GL20.GL_BLEND);

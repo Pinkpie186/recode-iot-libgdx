@@ -57,7 +57,7 @@ Durante o jogo, `Espaço`, `P` ou `Esc` abre a pausa. Ela permite continuar, vol
 
 1. **Circuitos Básicos:** os giros de antebraço conduzem ELO por três reparos e fragmentos de energia.
 2. **Rede Instável:** os nós são estabilizados por sequências de giros regulares. O jogo compara cada intervalo com o anterior do próprio jogador; não há velocidade mínima.
-3. **Sistema Central:** Nó Zero surge de uma ruptura nos circuitos no início do confronto e permanece visível como chefe da arena. Ele bloqueia alternadamente as linhas. Depois de três giros individuais de precisão, ELO muda automaticamente para a outra rota. O jogador pode manter o braço apoiado e continuar apenas com giros, voltando ao centro entre eles. Depois, complete os pares de ritmo e estabilidade para restaurar o escudo e avançar.
+3. **Sistema Central:** Nó Zero surge de uma ruptura nos circuitos no início do confronto e permanece visível como chefe da arena. Ele bloqueia alternadamente as linhas. Ao entrar nessa fase, ELO recupera os três corações, mesmo que tenha perdido vidas na fase 2. Depois de três giros individuais de precisão, ELO muda automaticamente para a outra rota. O jogador pode manter o braço apoiado e continuar apenas com giros, voltando ao centro entre eles. Depois, complete os pares de ritmo e estabilidade para restaurar o escudo e avançar.
 
 O menu e a pausa têm uma trilha própria, com sons discretos para navegar e confirmar. Cada fase tem uma trilha original: calma em Circuitos Básicos, mais rápida em Rede Instável e intensa no Sistema Central. Há efeitos de reparo para as três estruturas de cada fase, além de sons de impacto, ativação do escudo e fim de jogo. Os arquivos WAV ficam em `desktop/src/main/resources/audio`; `node tools/gerar_sons.js` os recria.
 
