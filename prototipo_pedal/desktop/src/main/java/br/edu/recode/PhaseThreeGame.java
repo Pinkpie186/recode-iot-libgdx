@@ -31,7 +31,7 @@ final class PhaseThreeGame extends ApplicationAdapter {
     private final CombatVisuals combat;
     private final EnergyFragments fragments;
     private final StageMotion motion = new StageMotion();
-    private final RouteHoldGesture routeGesture = new RouteHoldGesture();
+    private final BossIdleClock idleClock = new BossIdleClock();
     private final float[] conduitBuild = new float[PhaseThreeProgress.SHIELD_COUNT];
     private final float[] conduitFlash = new float[PhaseThreeProgress.SHIELD_COUNT];
     private SpriteBatch batch;
@@ -40,19 +40,19 @@ final class PhaseThreeGame extends ApplicationAdapter {
     private ScenarioBackground background;
     private CharacterSpriteSheet elo;
     private CharacterSpriteSheet mascot;
-    private CharacterSpriteSheet noZero;
+    private BossSpriteSheet noZero;
     private float animationTime;
     private float energyPulse;
     private float shieldPulse;
     private float routeTravelRemaining;
     private float routeTravelStartY = Float.NaN;
-    private float wrongRoutePulse;
     private float bossRevealSeconds;
     private float displayRouteY = Float.NaN;
     private boolean campaignLocked;
-    private boolean angleMissing;
+    private boolean bossCharging;
 
     void setCampaignLocked(boolean locked) { campaignLocked = locked; }
+    void setBossCharging(boolean charging) { bossCharging = charging; }
 
     PhaseThreeGame(PedalSource source, boolean simulated) {
         this(source, simulated, new PedalCounter(), new PhaseThreeProgress(), true,
@@ -92,25 +92,23 @@ final class PhaseThreeGame extends ApplicationAdapter {
         background = new ScenarioBackground("scenarios/sistema_central.png");
         elo = new CharacterSpriteSheet("sprites/elo.png");
         mascot = new CharacterSpriteSheet("sprites/mascote.png");
-        noZero = new CharacterSpriteSheet("sprites/no_zero.png");
+        noZero = new BossSpriteSheet("sprites/no_zero_boss.png");
         if (manageSource) source.start();
     }
 
     @Override public void render() {
         long now = System.nanoTime();
-        if (!signalAvailable(now)) {
-            routeGesture.reset();
-            angleMissing = false;
+        if (!source.signalAvailable(now)) {
+            counter.invalidateSignal();
         }
-        if (campaignLocked || progress.isPaused()) routeGesture.reset();
         if (manageSource && !campaignLocked && (Gdx.input.isKeyJustPressed(Input.Keys.P) ||
                 Gdx.input.isKeyJustPressed(Input.Keys.SPACE))) progress.togglePause();
         if (manageSource && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             progress.restart();
-            energyPulse = shieldPulse = wrongRoutePulse = routeTravelRemaining = 0f;
+            idleClock.reset();
+            combat.reset();
+            energyPulse = shieldPulse = routeTravelRemaining = 0f;
             routeTravelStartY = Float.NaN;
-            routeGesture.reset();
-            angleMissing = false;
             Arrays.fill(conduitBuild, 0f);
             Arrays.fill(conduitFlash, 0f);
             displayRouteY = Float.NaN;
@@ -121,48 +119,40 @@ final class PhaseThreeGame extends ApplicationAdapter {
         PedalFrame frame;
         while ((frame = source.poll()) != null) {
             int turns = counter.accept(frame, now);
-            if (campaignLocked || progress.isPaused() || progress.isComplete()) {
-                routeGesture.reset();
+            if (campaignLocked || progress.isPaused() || progress.isComplete() || turns <= 0)
                 continue;
+            int routeBefore = progress.activeRoute();
+            int shieldsBefore = progress.shields();
+            int restored = progress.acceptTurns(turns, frame.lastCycleMillis, frame.direction);
+            if (routeBefore != progress.activeRoute()) {
+                routeTravelStartY = displayRouteY;
+                routeTravelRemaining = ROUTE_TRAVEL_SECONDS;
             }
-            if (progress.step() == PhaseThreeProgress.Step.SWITCH) {
-                angleMissing = !Float.isFinite(frame.angleDeg);
-                if (turns > 0 && frame.direction != progress.requiredDirection())
-                    wrongRoutePulse = 1.4f;
-                if (routeGesture.accept(frame.deviceMillis, frame.angleDeg,
-                        progress.requiredDirection()) &&
-                        progress.acceptRouteHold(progress.requiredDirection(),
-                                frame.deviceMillis)) {
-                    routeTravelStartY = displayRouteY;
-                    routeTravelRemaining = ROUTE_TRAVEL_SECONDS;
-                    wrongRoutePulse = 0f;
-                }
-            } else {
-                routeGesture.reset();
-                angleMissing = false;
-                if (turns <= 0) continue;
-                int shieldsBefore = progress.shields();
-                int restored = progress.acceptTurns(turns, frame.lastCycleMillis, frame.direction);
-                if (shield.acceptTurns(turns, frame.lastCycleMillis)) combat.shieldStarted();
-                energyPulse = 1f;
-                if (restored > 0) {
-                    shieldPulse = 1f;
-                    for (int i = shieldsBefore; i < progress.shields(); i++)
-                        conduitFlash[i] = 1f;
-                }
+            if (shield.acceptTurns(turns, frame.lastCycleMillis)) combat.shieldStarted();
+            energyPulse = 1f;
+            if (restored > 0) {
+                shieldPulse = 1f;
+                for (int i = shieldsBefore; i < progress.shields(); i++)
+                    conduitFlash[i] = 1f;
             }
         }
         float delta = Gdx.graphics.getDeltaTime();
-        boolean connected = signalAvailable(now);
+        boolean connected = source.signalAvailable(now);
         if (!campaignLocked) progress.update(delta, connected && counter.rpm(now) > 0);
         if (manageSource) shield.update(delta, !progress.isPaused() && !progress.isComplete());
         if (!progress.isPaused()) combat.update(delta);
         if (!progress.isPaused()) animationTime += delta;
         if (!campaignLocked && !progress.isPaused() && !progress.isComplete())
             bossRevealSeconds = Math.min(BOSS_REVEAL_SECONDS, bossRevealSeconds + delta);
+        if (manageSource && idleClock.update(Math.min(0.1f, delta),
+                progress.totalTurns(), BossIdleClock.PHASE_THREE_SECONDS,
+                connected && !progress.isPaused() && !progress.isComplete(),
+                combat.attackFlying() || combat.hitActive() || combat.blockedActive())) {
+            if (shield.blockAttack()) combat.launchBlocked();
+            else combat.launchHit();
+        }
         energyPulse = Math.max(0f, energyPulse - delta * 2.4f);
         shieldPulse = Math.max(0f, shieldPulse - delta * 1.15f);
-        wrongRoutePulse = Math.max(0f, wrongRoutePulse - delta);
         if (!progress.isPaused() && (!campaignLocked || progress.isComplete())) {
             for (int i = 0; i < PhaseThreeProgress.SHIELD_COUNT; i++) {
                 if (i < progress.shields())
@@ -181,8 +171,6 @@ final class PhaseThreeGame extends ApplicationAdapter {
         float segment = (right - left) / PhaseThreeProgress.SHIELD_COUNT;
         float stepFraction = progress.step() == PhaseThreeProgress.Step.PRECISION
                 ? progress.precisionTurns() / (float) PhaseThreeProgress.PRECISION_TURNS / 3f
-                : progress.step() == PhaseThreeProgress.Step.SWITCH
-                ? 1f / 3f
                 : progress.step() == PhaseThreeProgress.Step.RHYTHM
                 ? (1f + progress.rhythmStreak() / (float) PhaseThreeProgress.RHYTHM_PAIRS) / 3f
                 : (2f + progress.stabilityStreak() /
@@ -209,13 +197,9 @@ final class PhaseThreeGame extends ApplicationAdapter {
         float bossX = width * (0.69f - journey * 0.10f);
         // Cabe entre as duas faixas da interface, inclusive em 960 x 540.
         float bossSize = Math.min(width * 0.45f, height * 0.60f);
-        float portalY = height * 0.20f;
         float reveal = Math.min(1f, bossRevealSeconds / BOSS_REVEAL_SECONDS);
-        float rise = reveal * reveal * (3f - 2f * reveal);
-        float finalBossY = portalY + bossSize * 0.50f +
+        float bossY = height * 0.20f + bossSize * 0.50f +
                 (float) Math.sin(VisualComfort.ambientTime(animationTime) * 0.65f) * 3f;
-        float bossY = portalY - bossSize * 0.55f +
-                (finalBossY - (portalY - bossSize * 0.55f)) * rise;
         // O disparo parte de um dos focos laterais do chefe, visivel atras da arena.
         float mouthX = bossX + (eloX < bossX ? 1f : -1f) * bossSize * 0.27f;
         float mouthY = bossY + bossSize * 0.15f;
@@ -230,133 +214,24 @@ final class PhaseThreeGame extends ApplicationAdapter {
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         StageDecor.draw(shapes, width, height, journey, animationTime, energyPulse, 3);
-        if (!progress.isComplete()) {
-            drawCircuitRift(bossX, portalY, bossSize, reveal);
-            drawBossBacklight(bossX, bossY, bossSize);
-        }
         batch.begin();
         if (!progress.isComplete()) {
             batch.setColor(Color.WHITE);
-            int enemyRow = shieldPulse > 0 ? 3 :
+            boolean attacking = shieldPulse > 0 ||
                     combat.attackFlying() || combat.hitActive() ||
-                    combat.blockedActive() || progress.interferenceActive()
-                            ? 1 : 0;
-            if (reveal < 1f) {
-                int clipY = Math.round(portalY * Gdx.graphics.getBackBufferHeight() / height);
-                Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
-                Gdx.gl.glScissor(0, clipY, Gdx.graphics.getBackBufferWidth(),
-                        Gdx.graphics.getBackBufferHeight() - clipY);
-            }
-            noZero.draw(batch, enemyRow, animationTime, bossX, bossY, bossSize);
-            batch.flush();
-            if (reveal < 1f) Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
+                    combat.blockedActive() || progress.interferenceActive() ||
+                    bossCharging || manageSource && idleClock.warningProgress(
+                            BossIdleClock.PHASE_THREE_SECONDS) > 0f;
+            noZero.draw(batch, reveal, animationTime, attacking, bossX, bossY, bossSize);
             batch.setColor(Color.WHITE);
         }
         batch.end();
-        if (!progress.isComplete())
-            drawTornWires(width, height, bossX, bossY, bossSize, reveal);
         fragments.draw(shapes, left, right, centerY + 105f, animationTime, false);
         drawWorld(width, height, left, right, upperY, lowerY, segment,
                 eloX, eloY, mouthX, mouthY);
         drawSpritesAndText(width, height, left, right, upperY, lowerY, segment,
                 eloX, eloY, bossX, connected, now);
         Gdx.gl.glDisable(GL20.GL_BLEND);
-    }
-
-    private void drawCircuitRift(float x, float y, float bossSize, float reveal) {
-        float ambient = VisualComfort.ambientTime(animationTime);
-        float opening = Math.min(1f, 0.16f + reveal * 2.2f);
-        float width = bossSize * 1.24f * opening;
-        float height = bossSize * 0.30f * opening;
-        float glow = 0.72f + 0.28f * (float) Math.sin(ambient * 4f);
-        shapes.begin(ShapeRenderer.ShapeType.Filled);
-        shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b, 0.16f * glow);
-        shapes.ellipse(x - width * 0.62f, y - height * 0.72f,
-                width * 1.24f, height * 1.44f);
-        shapes.setColor(CORRUPTION.r, 0.22f, 0.88f, 0.72f * glow);
-        shapes.ellipse(x - width * 0.5f, y - height * 0.5f, width, height);
-        shapes.setColor(0.025f, 0.008f, 0.055f, 0.97f);
-        shapes.ellipse(x - width * 0.46f, y - height * 0.35f,
-                width * 0.92f, height * 0.70f);
-        for (int side = -1; side <= 1; side += 2) {
-            float edge = x + side * width * 0.46f;
-            for (int i = 0; i < 3; i++) {
-                float startY = y + (i - 1) * height * 0.20f;
-                float tipX = edge + side * (36f + i * 20f) * opening;
-                float tipY = startY + (i - 1) * 19f;
-                shapes.setColor(CORRUPTION.r, 0.35f, 0.92f, 0.56f * glow);
-                shapes.rectLine(edge, startY, tipX, startY, 3f);
-                shapes.rectLine(tipX, startY, tipX, tipY, 3f);
-                shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b, 0.78f * glow);
-                shapes.circle(tipX, tipY, 3f);
-            }
-        }
-        shapes.end();
-    }
-
-    private void drawBossBacklight(float bossX, float bossY, float bossSize) {
-        float ambientTime = VisualComfort.ambientTime(animationTime);
-        shapes.begin(ShapeRenderer.ShapeType.Filled);
-        float pulse = 0.5f + (float) Math.sin(ambientTime * 2.2f) * 0.5f;
-        shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b, 0.07f + pulse * 0.04f);
-        shapes.circle(bossX, bossY + bossSize * 0.06f, bossSize * 0.59f);
-        shapes.setColor(CORRUPTION.r, 0.15f, 0.28f, 0.10f + pulse * 0.04f);
-        shapes.circle(bossX, bossY + bossSize * 0.03f, bossSize * 0.44f);
-        for (int i = 0; i < 8; i++) {
-            float drift = (float) Math.sin(ambientTime * 0.5f + i * 1.7f) * 12f;
-            float x = bossX + (i - 3.5f) * bossSize * 0.15f + drift;
-            float y = bossY - bossSize * 0.30f + (i % 3) * bossSize * 0.08f;
-            shapes.setColor(CORRUPTION.r, 0.24f, 0.47f, 0.10f);
-            shapes.circle(x, y, bossSize * (0.10f + (i % 2) * 0.03f));
-        }
-        shapes.end();
-    }
-
-    /** O chefe puxa cabos dos circuitos, rompe as conexoes e deixa pontas vivas. */
-    private void drawTornWires(int width, int height, float bossX, float bossY,
-                               float bossSize, float reveal) {
-        if (reveal < 0.42f) return;
-        float pull = Math.min(1f, Math.max(0f, (reveal - 0.10f) / 0.48f));
-        float snap = Math.min(1f, Math.max(0f, (reveal - 0.60f) / 0.22f));
-        float vibration = VisualComfort.softEffects() ? 1.5f : 4f;
-        shapes.begin(ShapeRenderer.ShapeType.Filled);
-        for (int side = -1; side <= 1; side += 2) {
-            for (int cable = 0; cable < 2; cable++) {
-                float anchorX = side < 0 ? width * 0.29f : width * 0.94f;
-                float anchorY = height * (cable == 0 ? 0.38f : 0.64f);
-                float gripX = bossX + side * bossSize * 0.34f;
-                float gripY = bossY + bossSize * (cable == 0 ? -0.13f : 0.16f);
-                float tipX = anchorX + (gripX - anchorX) * (1f - 0.75f * snap);
-                float tipY = anchorY + (gripY - anchorY) * (1f - 0.75f * snap)
-                        - snap * (22f + cable * 11f);
-                float bendX = anchorX + (tipX - anchorX) * (0.52f + 0.12f * pull);
-                float bendY = anchorY + (tipY - anchorY) * 0.52f +
-                        (float) Math.sin(animationTime * 13f + cable * 2f + side) *
-                                vibration * (1f - snap * 0.65f);
-                shapes.setColor(0.02f, 0.01f, 0.06f, 1f);
-                shapes.rectLine(anchorX, anchorY, bendX, bendY, 10f);
-                shapes.rectLine(bendX, bendY, tipX, tipY, 10f);
-                shapes.setColor(side < 0 ? ENERGY : CORRUPTION);
-                shapes.rectLine(anchorX, anchorY, bendX, bendY, 4f);
-                shapes.rectLine(bendX, bendY, tipX, tipY, 4f);
-                if (snap > 0f) {
-                    float looseX = gripX - side * snap * 28f;
-                    float looseY = gripY - snap * (26f + cable * 7f);
-                    shapes.setColor(CORRUPTION.r, CORRUPTION.g, CORRUPTION.b,
-                            0.9f - snap * 0.3f);
-                    shapes.rectLine(gripX, gripY, looseX, looseY, 5f);
-                    float spark = (float) Math.sin(animationTime * 18f + cable * 4f + side);
-                    if (spark > 0.12f) {
-                        shapes.setColor(ENERGY.r, ENERGY.g, ENERGY.b,
-                                (0.35f + 0.45f * spark) * snap);
-                        shapes.circle(tipX, tipY, 3f + spark * 3f);
-                        shapes.rectLine(tipX - 8f, tipY + 6f,
-                                tipX + 7f, tipY - 7f, 2f);
-                    }
-                }
-            }
-        }
-        shapes.end();
     }
 
     private void drawWorld(int width, int height, float left, float right,
@@ -421,7 +296,8 @@ final class PhaseThreeGame extends ApplicationAdapter {
 
     private void drawRouteSwitch(float left, float segment, float upperY, float lowerY) {
         float x = left + segment * (progress.shields() + 1f / 3f);
-        boolean waiting = progress.step() == PhaseThreeProgress.Step.SWITCH;
+        boolean waiting = progress.step() == PhaseThreeProgress.Step.PRECISION &&
+                progress.precisionTurns() == PhaseThreeProgress.PRECISION_TURNS - 1;
         float pulse = 0.5f + 0.5f * (float) Math.sin(animationTime * 5f);
         shapes.setColor(waiting ? MUTED : TRACK);
         shapes.rectLine(x, upperY, x, lowerY, waiting ? 4f : 3f);
@@ -434,13 +310,10 @@ final class PhaseThreeGame extends ApplicationAdapter {
         shapes.setColor(CORRUPTION);
         shapes.rectLine(x + 18f, blockedY - 15f, x + 18f, blockedY + 15f, 5f);
         if (waiting) {
-            float targetY = progress.requiredDirection() < 0 ? lowerY : upperY;
+            float targetY = progress.shields() % 2 == 0 ? lowerY : upperY;
             shapes.setColor(RESTORED.r, RESTORED.g, RESTORED.b, 0.58f + pulse * 0.22f);
             shapes.triangle(x - 14f, targetY + 5f, x - 5f, targetY,
                     x - 14f, targetY - 5f);
-            float held = routeGesture.fraction();
-            if (held > 0f) shapes.rectLine(x, blockedY,
-                    x, blockedY + (targetY - blockedY) * held, 3f);
         }
     }
 
@@ -483,24 +356,21 @@ final class PhaseThreeGame extends ApplicationAdapter {
                 right - 165, 76);
         if (!progress.isComplete()) {
             String sequence = progress.step() == PhaseThreeProgress.Step.PRECISION
-                    ? "Precisao: " + progress.precisionTurns() + "/3 giros individuais"
-                    : progress.step() == PhaseThreeProgress.Step.SWITCH
-                    ? "Chave de rota: mantenha inclinado para " +
-                        (progress.requiredDirection() < 0 ? "BAIXO" : "CIMA")
+                    ? "GIRE separadamente: " + progress.precisionTurns() + "/3"
                     : progress.step() == PhaseThreeProgress.Step.RHYTHM
-                    ? "Ritmo: " + progress.rhythmStreak() + "/2 pares seguidos"
-                    : "Estabilidade: " + progress.stabilityStreak() + "/3 pares seguidos";
+                    ? "GIRE com ritmo: " + progress.rhythmStreak() + "/2 pares"
+                    : "GIRE com estabilidade: " + progress.stabilityStreak() + "/3 pares";
             font.draw(batch, "Escudo " + (progress.shields() + 1) + "/3  |  " + sequence,
                     left, 49);
             font.setColor(progress.interferenceActive() ? CORRUPTION : RESTORED);
-            font.draw(batch, progress.step() == PhaseThreeProgress.Step.SWITCH ?
-                    angleMissing ? "Inclinacao indisponivel: atualize o ESP32" :
-                    wrongRoutePulse > 0f ? "Sentido oposto: incline para " +
-                            (progress.requiredDirection() < 0 ? "BAIXO" : "CIMA") :
-                            "Na estacao: volte ao centro e segure a inclinacao" :
-                    progress.routeChanged() ? "ELO atravessou a estacao" :
-                    "Rota " + (progress.activeRoute() == 0 ? "superior" : "inferior") + " ativa",
+            font.draw(batch, progress.routeChanged() ? "ELO atravessou a estacao" :
+                    "A rota muda apos 3 giros individuais",
                     left, 25);
+            if (manageSource && idleClock.warningProgress(
+                    BossIdleClock.PHASE_THREE_SECONDS) > 0f) {
+                font.setColor(CORRUPTION);
+                font.draw(batch, "NO ZERO PREPARA UM ATAQUE", left, height * 0.19f);
+            }
         }
 
         if (progress.isPaused()) {
@@ -537,10 +407,5 @@ final class PhaseThreeGame extends ApplicationAdapter {
         font.dispose();
         shapes.dispose();
         batch.dispose();
-    }
-
-    private boolean signalAvailable(long now) {
-        long last = source.lastFrameNanos();
-        return source.error().isEmpty() && last >= 0 && now - last <= 2_000_000_000L;
     }
 }

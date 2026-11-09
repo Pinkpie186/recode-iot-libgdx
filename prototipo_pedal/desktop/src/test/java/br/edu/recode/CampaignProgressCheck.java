@@ -6,13 +6,17 @@ public final class CampaignProgressCheck {
 
     public static void main(String[] args) {
         fullVictoryKeepsAllResults();
-        irregularTurnsCanCauseDefeatWithoutTimeLimit();
+        irregularTurnsCanCauseDefeat();
         phaseTwoRequiresContinuousRhythm();
+        phaseTwoNeverStopsAtSecondTotem();
         phaseTwoBossAttacksEvenWithRegularRhythm();
+        idleBossAttacksInPhaseTwoAndRespectsRest();
+        idleBossAttacksInPhaseThreeAndShieldBlocks();
         phaseThreeRequiresOrderedSequence();
-        routeSwitchRequiresHeldInclination();
         forearmFramesRequireSensorProtocol();
         sensorRecalibrationStartsFromNewBaseline();
+        sensorLossRequiresFreshBaseline();
+        signalStatusDoesNotHideSensorError();
         mascotShieldLastsFifteenPlayingSeconds();
         shieldBlocksThenAllowsTheNextHit();
         phaseThreeAttackReachesEloBeforeImpact();
@@ -43,9 +47,6 @@ public final class CampaignProgressCheck {
         run.advance();
 
         for (int turn = 25; turn <= 51; turn++) {
-            if (run.third().step() == PhaseThreeProgress.Step.SWITCH)
-                run.third().acceptRouteHold(run.third().requiredDirection(),
-                        (turn - 1) * 1000L);
             run.third().acceptTurns(1, turn * 1000L, turn % 2 == 0 ? 1 : -1);
             run.third().update(0.5f, true);
             run.observe();
@@ -61,27 +62,24 @@ public final class CampaignProgressCheck {
         require(run.totalMovingSeconds() > 30f, "tempo de movimento preservado");
     }
 
-    private static void irregularTurnsCanCauseDefeatWithoutTimeLimit() {
+    private static void irregularTurnsCanCauseDefeat() {
         CampaignProgress run = new CampaignProgress();
         run.first().addRotations(20);
         run.observe();
         run.advance();
-        run.second().update(500f, false);
-        run.observe();
-        require(run.integrity() == 3, "tempo parado nao causa derrota");
-
         long deviceMillis = 1000;
         int observedAttack = 0;
-        for (int turn = 1; turn <= 26; turn++) {
+        for (int turn = 1; turn <= 36; turn++) {
             deviceMillis += turn % 2 == 0 ? 300 : 2000;
             run.second().acceptTurns(1, deviceMillis);
             run.observe();
             if (run.attackSequence() > observedAttack && !run.lastAttackBlocked())
                 run.resolveHit();
             observedAttack = run.attackSequence();
+            if (run.status() == CampaignProgress.Status.DEFEAT) break;
         }
         require(run.status() == CampaignProgress.Status.DEFEAT, "interferencia causa derrota");
-        require(run.integrity() == 0 && run.turns(2) == 20,
+        require(run.integrity() == 0 && run.turns(2) >= 24,
                 "tres ataques sem protecao encerram a tentativa");
         require(run.turns(1) == 20, "fase anterior mantida na derrota");
     }
@@ -108,6 +106,17 @@ public final class CampaignProgressCheck {
         require(progress.stablePairs() == 0, "pausa reinicia sequencia regular");
     }
 
+    private static void phaseTwoNeverStopsAtSecondTotem() {
+        PhaseTwoProgress progress = new PhaseTwoProgress();
+        long time = 1000;
+        for (int turn = 0; turn < 24; turn++) {
+            time += turn % 2 == 0 ? 1000 : 1800;
+            progress.acceptTurns(1, time);
+        }
+        require(progress.nodes() == 2 && progress.nodeTurns() == 0,
+                "ritmo irregular nao prende ELO no segundo totem");
+    }
+
     private static void phaseTwoBossAttacksEvenWithRegularRhythm() {
         CampaignProgress run = new CampaignProgress();
         run.first().addRotations(20);
@@ -122,63 +131,87 @@ public final class CampaignProgressCheck {
                 "No Zero dispara no primeiro no e o ritmo regular protege ELO");
     }
 
+    private static void idleBossAttacksInPhaseTwoAndRespectsRest() {
+        CampaignProgress run = new CampaignProgress();
+        run.first().addRotations(20);
+        run.observe();
+        run.advance();
+        run.updateBossIdle(0f, true, false);
+        run.updateBossIdle(5.2f, true, false);
+        require(run.bossIdleWarning() > 0f && run.attackSequence() == 0,
+                "aviso aparece antes do disparo sem giros");
+        run.updateBossIdle(1.9f, true, false);
+        require(run.attackSequence() == 1 && run.pendingHits() == 1,
+                "No Zero ataca ELO parado na fase 2");
+        run.resolveHit();
+        require(run.integrity() == 2, "disparo parado remove um coracao apos impacto");
+
+        run.updateBossIdle(3f, true, false);
+        run.second().acceptTurns(1, 1000L);
+        run.observe();
+        run.updateBossIdle(BossIdleClock.PHASE_TWO_SECONDS, true, false);
+        require(run.attackSequence() == 1, "giro valido reinicia o preparo do chefe");
+        run.updateBossIdle(4f, true, false);
+        run.updateBossIdle(0f, false, false);
+        require(run.bossIdleWarning() == 0f, "pausa ou falta de sinal limpa o aviso");
+        run.updateBossIdle(4f, true, false);
+        require(run.attackSequence() == 1, "retorno da pausa concede novo intervalo");
+    }
+
+    private static void idleBossAttacksInPhaseThreeAndShieldBlocks() {
+        CampaignProgress run = new CampaignProgress();
+        run.first().addRotations(20);
+        run.observe();
+        run.advance();
+        for (int turn = 1; turn <= 24; turn++) {
+            run.second().acceptTurns(1, turn * 1000L);
+            run.observe();
+        }
+        require(run.status() == CampaignProgress.Status.BETWEEN_PHASES,
+                "fase 2 concluida antes do teste final");
+        run.advance();
+        int previousAttacks = run.attackSequence();
+        for (int turn = 1; turn <= 5; turn++)
+            run.mascotShield().acceptTurns(1, turn * 1000L);
+        run.updateBossIdle(0f, true, false);
+        run.updateBossIdle(BossIdleClock.PHASE_THREE_SECONDS + 0.1f, true, false);
+        require(run.attackSequence() == previousAttacks + 1 &&
+                run.lastAttackBlocked() && run.pendingHits() == 0 && run.integrity() == 3,
+                "escudo bloqueia ataque do chefe contra ELO parado na fase 3");
+        run.mascotShield().update(MascotShield.DURATION_SECONDS, true);
+        run.updateBossIdle(0f, true, true);
+        run.updateBossIdle(BossIdleClock.PHASE_THREE_SECONDS + 0.1f, true, false);
+        require(run.attackSequence() == previousAttacks + 2 && run.pendingHits() == 1,
+                "apos expirar o escudo, novo disparo chega a ELO");
+        run.resolveHit();
+        require(run.integrity() == 2, "fase 3 perde um coracao por impacto real");
+    }
+
     private static void phaseThreeRequiresOrderedSequence() {
         PhaseThreeProgress progress = new PhaseThreeProgress();
         progress.acceptTurns(3, 1000);
         require(progress.precisionTurns() == 0, "lote sem instantes nao prova precisao");
         for (int turn = 1; turn <= 3; turn++)
             progress.acceptTurns(1, turn * 1000L + 1000, turn % 2 == 0 ? 1 : -1);
-        require(progress.step() == PhaseThreeProgress.Step.SWITCH &&
-                progress.activeRoute() == 0 && progress.restoredConduits() == 0,
-                "precisao leva a chave sem trocar de linha");
-        progress.acceptTurns(2, 5000, -1);
-        require(progress.step() == PhaseThreeProgress.Step.SWITCH &&
-                progress.activeRoute() == 0, "giros em lote nao acionam a chave");
-        progress.acceptTurns(1, 6000, 1);
-        require(progress.step() == PhaseThreeProgress.Step.SWITCH &&
-                progress.activeRoute() == 0, "giro para cima nao leva a linha inferior");
-        progress.acceptTurns(1, 7000, -1);
-        require(progress.step() == PhaseThreeProgress.Step.SWITCH &&
-                progress.activeRoute() == 0, "giro comum nao aciona a chave");
-        require(!progress.acceptRouteHold(1, 7000), "inclinacao oposta nao aciona a chave");
-        require(progress.acceptRouteHold(-1, 7000), "inclinacao sustentada aciona a chave");
         require(progress.step() == PhaseThreeProgress.Step.RHYTHM &&
                 progress.activeRoute() == 1 && progress.restoredConduits() == 1,
-                "gesto para baixo aciona o desvio para a linha inferior");
-        for (int turn = 8; turn <= 10; turn++) progress.acceptTurns(1, turn * 1000L, 1);
+                "terceiro giro muda automaticamente para a linha inferior");
+        for (int turn = 5; turn <= 7; turn++) progress.acceptTurns(1, turn * 1000L, 1);
         require(progress.step() == PhaseThreeProgress.Step.STABILITY, "ritmo depois do desvio");
-        progress.acceptTurns(1, 11000, -1);
-        progress.acceptTurns(1, 11500, 1);
+        progress.acceptTurns(1, 8000, -1);
+        progress.acceptTurns(1, 8500, 1);
         require(progress.stabilityStreak() == 0, "irregularidade reinicia estabilidade");
-        progress.acceptTurns(1, 12000, -1);
-        progress.acceptTurns(1, 12500, 1);
-        progress.acceptTurns(1, 13000, -1);
+        progress.acceptTurns(1, 9000, -1);
+        progress.acceptTurns(1, 9500, 1);
+        progress.acceptTurns(1, 10000, -1);
         require(progress.shields() == 1 && progress.step() == PhaseThreeProgress.Step.PRECISION &&
                 progress.activeRoute() == 1 && progress.restoredConduits() == 2,
                 "estabilidade conclui a sequencia e inicia proximo escudo");
-        for (int turn = 14; turn <= 16; turn++)
+        for (int turn = 11; turn <= 13; turn++)
             progress.acceptTurns(1, turn * 1000L, -1);
-        require(progress.step() == PhaseThreeProgress.Step.SWITCH &&
-                progress.requiredDirection() == 1 && progress.activeRoute() == 1,
-                "segundo desvio pede giro para cima");
-        require(progress.acceptRouteHold(1, 17000), "gesto para cima aciona o segundo desvio");
-        require(progress.activeRoute() == 0, "inclinacao para cima leva a linha superior");
-    }
-
-    private static void routeSwitchRequiresHeldInclination() {
-        RouteHoldGesture gesture = new RouteHoldGesture();
-        require(!gesture.accept(1000, -35f, -1), "inclinacao anterior nao vale sem neutro");
-        require(!gesture.accept(1100, 0f, -1), "neutro arma a estacao");
-        require(!gesture.accept(1200, 35f, -1), "lado oposto nao vale");
-        require(!gesture.accept(1300, -35f, -1), "inicio da sustentacao");
-        require(!gesture.accept(1850, -35f, -1), "inclinacao breve nao vale");
-        require(gesture.accept(1950, -35f, -1), "sustentar 650 ms muda a linha");
-        require(!gesture.accept(2050, -35f, -1), "precisa voltar ao neutro entre estacoes");
-        require(!gesture.accept(2150, 0f, 1), "neutro rearma proxima estacao");
-        require(!gesture.accept(2250, 35f, 1), "inicio da subida");
-        require(gesture.accept(2900, 35f, 1), "sustentacao para cima funciona");
-        gesture.reset();
-        require(!gesture.accept(3000, Float.NaN, 1), "sem angulo nao ha desvio");
+        require(progress.step() == PhaseThreeProgress.Step.RHYTHM &&
+                progress.activeRoute() == 0,
+                "segundo conjunto de tres giros muda de volta para a linha superior");
     }
 
     private static void forearmFramesRequireSensorProtocol() {
@@ -208,6 +241,50 @@ public final class CampaignProgressCheck {
                 "recalibracao nao cria giro fantasma");
         require(counter.accept(frame(4, 2000, 1, 1950), 2_000_000_000L) == 1,
                 "jogo volta a contar apos recalibracao");
+    }
+
+    private static void sensorLossRequiresFreshBaseline() {
+        PedalCounter counter = new PedalCounter();
+        counter.accept(frame(10, 1000, 4, 900), 1_000_000_000L);
+        require(counter.accept(frame(11, 1400, 5, 1300), 1_400_000_000L) == 1,
+                "gesto antes da falha recebido");
+        counter.invalidateSignal();
+        require(counter.accept(frame(20, 2400, 6, 2300), 2_400_000_000L) == 0,
+                "primeiro quadro apos perda de sinal estabelece nova base");
+        require(counter.accept(frame(21, 2800, 7, 2700), 2_800_000_000L) == 1,
+                "gesto seguinte volta a contar");
+        String broken = "{\"v\":2,\"seq\":22,\"ms\":2900,\"mode\":\"forearm\"," +
+                "\"movement\":7,\"lastMovementMs\":2700,\"direction\":1," +
+                "\"state\":\"sensor_error\"}";
+        try {
+            PedalFrame.parse(broken);
+            throw new AssertionError("sensor_error nao pode pontuar");
+        } catch (IllegalArgumentException expected) {
+            require(expected.getMessage().startsWith("MPU6050 sem sinal"),
+                    "falha do sensor deve orientar conferência da montagem");
+        }
+    }
+
+    private static void signalStatusDoesNotHideSensorError() {
+        final long[] last = {1_000_000_000L};
+        final String[] error = {""};
+        PedalSource source = new PedalSource() {
+            @Override public void start() { }
+            @Override public PedalFrame poll() { return null; }
+            @Override public long lastFrameNanos() { return last[0]; }
+            @Override public String error() { return error[0]; }
+            @Override public void close() { }
+        };
+        require(source.signalAvailable(1_100_000_000L), "quadro recente indica sinal ativo");
+        error[0] = "MPU6050 sem sinal: confira solda e fios";
+        require(!source.signalAvailable(1_100_000_000L),
+                "erro do sensor interrompe o jogo imediatamente");
+        error[0] = "";
+        require(!source.signalAvailable(4_000_000_000L),
+                "quadro antigo nao deve indicar conexao ativa");
+        last[0] = 4_100_000_000L;
+        require(source.signalAvailable(4_200_000_000L),
+                "sinal restaurado permite retomar a campanha");
     }
 
     private static PedalFrame frame(long sequence, long ms, long movement, long lastMovementMs) {
@@ -248,7 +325,7 @@ public final class CampaignProgressCheck {
         require(run.integrity() == 3 && run.attackSequence() == 1 &&
                 run.lastAttackBlocked(), "primeiro ataque bloqueado");
         run.mascotShield().update(15f, true);
-        for (int turn = 7; turn <= 14; turn++) {
+        for (int turn = 7; turn <= 18; turn++) {
             time += turn % 2 == 0 ? 300 : 2000;
             run.second().acceptTurns(1, time);
             run.observe();
@@ -316,4 +393,3 @@ public final class CampaignProgressCheck {
         if (!condition) throw new AssertionError(description);
     }
 }
-

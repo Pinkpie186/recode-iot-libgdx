@@ -2,7 +2,7 @@ package br.edu.recode;
 
 /** Sequencia ludica do confronto final; os limites nao sao metas de exercicio. */
 final class PhaseThreeProgress {
-    enum Step { PRECISION, SWITCH, RHYTHM, STABILITY }
+    enum Step { PRECISION, RHYTHM, STABILITY }
 
     static final int SHIELD_COUNT = 3;
     static final int PRECISION_TURNS = 3;
@@ -23,13 +23,13 @@ final class PhaseThreeProgress {
     private long lastTurnMillis = -1;
     private long lastIntervalMillis = -1;
 
-    /** Os giros de reparo nao acionam a chave de rota. */
+    /** A rota muda automaticamente ao concluir os tres giros de precisao. */
     int acceptTurns(int turns, long lastCycleMillis) {
         return acceptTurns(turns, lastCycleMillis, 0);
     }
 
     int acceptTurns(int turns, long lastCycleMillis, int direction) {
-        if (paused || isComplete() || turns <= 0 || step == Step.SWITCH) return 0;
+        if (paused || isComplete() || turns <= 0) return 0;
         boolean steady = false;
         if (turns == 1 && lastTurnMillis >= 0 && lastCycleMillis > lastTurnMillis) {
             long interval = lastCycleMillis - lastTurnMillis;
@@ -57,12 +57,10 @@ final class PhaseThreeProgress {
                 case PRECISION:
                     // Um lote de giros nao informa o instante de cada movimento.
                     if (individual && ++precisionTurns >= PRECISION_TURNS) {
-                        step = Step.SWITCH;
+                        step = Step.RHYTHM;
                         rhythmStreak = 0;
                         lastIntervalMillis = -1;
                     }
-                    break;
-                case SWITCH:
                     break;
                 case RHYTHM:
                     rhythmStreak = steady && individual ? rhythmStreak + 1 : 0;
@@ -86,16 +84,6 @@ final class PhaseThreeProgress {
             }
         }
         return restored;
-    }
-
-    /** A troca exige inclinacao sustentada, registrada separadamente dos giros. */
-    boolean acceptRouteHold(int direction, long gestureMillis) {
-        if (paused || isComplete() || step != Step.SWITCH || direction != requiredDirection())
-            return false;
-        step = Step.RHYTHM;
-        lastTurnMillis = gestureMillis;
-        lastIntervalMillis = -1L;
-        return true;
     }
 
     void update(float seconds, boolean movingWithSignal) {
@@ -131,10 +119,9 @@ final class PhaseThreeProgress {
     boolean isComplete() { return shields == SHIELD_COUNT; }
     float movingSeconds() { return movingSeconds; }
 
-    /** A rota muda apenas quando o jogador gira o antebraco para o lado pedido. */
+    /** A passagem de rota acompanha a conclusao dos giros de precisao. */
     boolean routeChanged() { return !isComplete() &&
             (step == Step.RHYTHM || step == Step.STABILITY); }
-    int requiredDirection() { return shields % 2 == 0 ? -1 : 1; }
     int activeRoute() { return (shields + (routeChanged() ? 1 : 0)) % 2; }
     int restoredConduits() { return shields * 2 + (routeChanged() ? 1 : 0); }
     boolean interferenceActive() {
