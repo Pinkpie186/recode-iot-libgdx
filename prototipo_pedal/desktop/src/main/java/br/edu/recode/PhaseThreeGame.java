@@ -363,7 +363,9 @@ final class PhaseThreeGame extends ApplicationAdapter {
             font.draw(batch, "Escudo " + (progress.shields() + 1) + "/3  |  " + sequence,
                     left, 49);
             font.setColor(progress.interferenceActive() ? CORRUPTION : RESTORED);
-            font.draw(batch, progress.routeChanged() ? "ELO atravessou a estacao" :
+            font.draw(batch, progress.interferenceActive() ?
+                    "Interferencia: " + (int) Math.ceil(progress.interferenceRemaining()) + " s"
+                    : progress.routeChanged() ? "ELO atravessou a estacao" :
                     "A rota muda apos 3 giros individuais",
                     left, 25);
             if (manageSource && idleClock.warningProgress(

@@ -328,10 +328,11 @@ final class PhaseTwoGame extends ApplicationAdapter {
             font.draw(batch, "Totem: " + progress.nodeTurns() + "/" +
                     PhaseTwoProgress.MAX_TURNS_PER_NODE + " giros; " +
                     Math.min(progress.stablePairs(), 2) + "/2 pares regulares", left, 47);
-            font.setColor(feedbackSeconds > 0f ? positiveFeedback ? RESTORED : MUTED
-                    : progress.interferenceActive() ? CORRUPTION : RESTORED);
-            font.draw(batch, feedbackSeconds > 0f ? movementFeedback
-                    : progress.interferenceActive() ? "No Zero interfere na rede"
+            font.setColor(progress.interferenceActive() ? CORRUPTION :
+                    feedbackSeconds > 0f ? positiveFeedback ? RESTORED : MUTED : RESTORED);
+            font.draw(batch, progress.interferenceActive() ?
+                    "Interferencia: " + (int) Math.ceil(progress.interferenceRemaining()) + " s"
+                    : feedbackSeconds > 0f ? movementFeedback
                     : "Sinal em recuperacao", left, 24);
             font.setColor(MUTED);
             font.draw(batch, manageSource ? "P/Espaco: pausa   R: reiniciar"

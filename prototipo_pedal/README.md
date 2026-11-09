@@ -63,6 +63,8 @@ O menu e a pausa têm uma trilha própria, com sons discretos para navegar e con
 
 Na Rede Instável e no Sistema Central, três pares de giros regulares carregam o escudo do mascote por **15 segundos de jogo**. Ele bloqueia os ataques de Nó Zero. O resultado final preserva os giros, objetivos, pares regulares, fragmentos e tempo de movimento de cada fase.
 
+Nas fases 2 e 3, a interferência de Nó Zero dura no máximo **3 segundos de jogo por estação**. A contagem pausa junto com a campanha e não recomeça na mesma estação. Ataques ligados à interferência só podem ser disparados durante essa janela; o ataque após um longo período sem giros continua com seu aviso próprio.
+
 Se ELO ficar sem giros válidos, Nó Zero também prepara um disparo: após **7 segundos** na fase 2 ou **6 segundos** na fase 3. Um aviso aparece nos 2 segundos finais. Um giro válido reinicia esse preparo; a pausa e a perda do sinal do sensor também o interrompem. O escudo ativo bloqueia o disparo. Para descansar sem receber ataques, abra a pausa com `Espaço`.
 
 Os quadros de ELO alternam entre repouso, corrida, impacto e reparo. O avanço do personagem e o deslocamento do cenário usam o tempo de cada quadro para acompanhar os gestos sem saltos visuais; elementos próximos e distantes se movem em velocidades diferentes. Nas fases 2 e 3, os disparos de Nó Zero mostram direção, trajetória e impacto; na fase final eles partem do chefe ao fundo e chegam até ELO ou ao escudo.
