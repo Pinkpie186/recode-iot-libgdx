@@ -27,6 +27,7 @@ final class CampaignGame extends ApplicationAdapter {
     private CampaignProgress progress = new CampaignProgress();
     private PedalCounter counter = new PedalCounter();
     private CombatVisuals combat = new CombatVisuals();
+    private GameAudio audio;
     private ApplicationAdapter active;
     private SpriteBatch batch;
     private BitmapFont font;
@@ -42,9 +43,12 @@ final class CampaignGame extends ApplicationAdapter {
     private boolean briefing;
     private boolean showHelp;
     private boolean pauseMenu;
+    private boolean sensorHold;
     private int titleSelection;
     private int pauseSelection;
     private int observedAttackSequence;
+    private int observedObjectives;
+    private int observedShieldActivations;
 
     CampaignGame(PedalSource source, boolean simulated) {
         this.source = source;
@@ -59,6 +63,7 @@ final class CampaignGame extends ApplicationAdapter {
         menuElo = new CharacterSpriteSheet("sprites/elo.png");
         menuMascot = new CharacterSpriteSheet("sprites/mascote.png");
         menuNoZero = new CharacterSpriteSheet("sprites/no_zero.png");
+        audio = new GameAudio();
         source.start();
     }
 
@@ -80,11 +85,16 @@ final class CampaignGame extends ApplicationAdapter {
                 throw new IllegalStateException("Fase desconhecida");
         }
         active.create();
+        observedObjectives = progress.objectives(progress.phase());
+        audio.phase(progress.phase());
     }
 
     @Override public void render() {
         float delta = Math.min(0.1f, Math.max(0f, Gdx.graphics.getDeltaTime()));
         menuTime += delta;
+        audio.playing(!onTitle && !briefing && !pauseMenu && !sensorHold &&
+                progress.status() == CampaignProgress.Status.RUNNING);
+        audio.menu(onTitle || pauseMenu);
         if (onTitle) {
             drainMenuFrames();
             handleTitleInput();
@@ -106,11 +116,14 @@ final class CampaignGame extends ApplicationAdapter {
             if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) returnToTitle();
             else if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER) ||
                     Gdx.input.isKeyJustPressed(Input.Keys.SPACE) || Gdx.input.justTouched()) {
+                audio.confirm();
                 briefing = false;
                 lockActive(false);
             }
             return;
         }
+
+        updateSensorHold();
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) ||
                 Gdx.input.isKeyJustPressed(Input.Keys.P) ||
@@ -140,13 +153,28 @@ final class CampaignGame extends ApplicationAdapter {
         active.render();
         progress.mascotShield().update(delta,
                 progress.status() == CampaignProgress.Status.RUNNING && !phasePaused());
-        if (combat.hitActive() && progress.pendingHits() > 0) {
+        if (!sensorHold && combat.hitActive() && progress.pendingHits() > 0) {
             progress.resolveHit();
-            if (progress.status() == CampaignProgress.Status.DEFEAT) lockActive(true);
+            audio.hit();
+            if (progress.status() == CampaignProgress.Status.DEFEAT) {
+                audio.gameOver();
+                lockActive(true);
+            }
         }
 
         if (progress.status() == CampaignProgress.Status.RUNNING) {
             progress.observe();
+            int currentObjectives = progress.objectives(progress.phase());
+            if (currentObjectives > observedObjectives) audio.repair();
+            observedObjectives = currentObjectives;
+            int shieldActivations = progress.mascotShield().activations();
+            if (shieldActivations > observedShieldActivations) audio.shield();
+            observedShieldActivations = shieldActivations;
+            progress.updateBossIdle(delta, !sensorHold && !phasePaused(),
+                    combat.attackFlying() || combat.hitActive() ||
+                    combat.blockedActive() ||
+                    progress.attackSequence() != observedAttackSequence);
+            setBossCharging(progress.bossIdleWarning() > 0f);
             if (progress.attackSequence() != observedAttackSequence) {
                 observedAttackSequence = progress.attackSequence();
                 if (progress.lastAttackBlocked()) combat.launchBlocked();
@@ -159,6 +187,7 @@ final class CampaignGame extends ApplicationAdapter {
             if (transitionTime >= INTERMISSION_REVEAL_SECONDS &&
                     !combat.attackFlying() && progress.pendingHits() == 0 &&
                     (Gdx.input.isKeyJustPressed(Input.Keys.ENTER) || Gdx.input.justTouched())) {
+                audio.confirm();
                 active.dispose();
                 progress.advance();
                 transitionTime = 0f;
@@ -183,6 +212,27 @@ final class CampaignGame extends ApplicationAdapter {
             }
         }
         drawCampaignHud();
+        if (sensorHold) drawSensorHold();
+    }
+
+    private void updateSensorHold() {
+        if (simulated || active == null || progress.status() != CampaignProgress.Status.RUNNING) {
+            sensorHold = false;
+            return;
+        }
+        boolean lost = !source.signalAvailable(System.nanoTime());
+        if (lost == sensorHold) return;
+        sensorHold = lost;
+        if (lost) {
+            setPhasePaused(true);
+            lockActive(true);
+            progress.mascotShield().resetSequence();
+            progress.resetBossIdle();
+            setBossCharging(false);
+        } else if (!pauseMenu) {
+            setPhasePaused(false);
+            lockActive(false);
+        }
     }
 
     private void drainMenuFrames() {
@@ -201,11 +251,18 @@ final class CampaignGame extends ApplicationAdapter {
             return;
         }
         int count = active == null ? 4 : 5;
-        if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) titleSelection = (titleSelection + 1) % count;
-        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) titleSelection = (titleSelection + count - 1) % count;
+        if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
+            titleSelection = (titleSelection + 1) % count;
+            audio.navigate();
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
+            titleSelection = (titleSelection + count - 1) % count;
+            audio.navigate();
+        }
         if (Gdx.input.justTouched()) {
             int selected = selectedMenuOption(0.12f, 0.57f, 0.075f, count);
             if (selected >= 0) {
+                if (selected != titleSelection) audio.navigate();
                 titleSelection = selected;
                 activateTitleOption();
             }
@@ -216,6 +273,7 @@ final class CampaignGame extends ApplicationAdapter {
     }
 
     private void activateTitleOption() {
+        audio.confirm();
         if (active != null) {
             switch (titleSelection) {
                 case 0: continueCampaign(); break;
@@ -237,8 +295,14 @@ final class CampaignGame extends ApplicationAdapter {
     }
 
     private void handlePauseInput() {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) pauseSelection = (pauseSelection + 1) % 4;
-        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) pauseSelection = (pauseSelection + 3) % 4;
+        if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
+            pauseSelection = (pauseSelection + 1) % 4;
+            audio.navigate();
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
+            pauseSelection = (pauseSelection + 3) % 4;
+            audio.navigate();
+        }
         if (Gdx.input.isKeyJustPressed(Input.Keys.M)) {
             returnToTitle();
             return;
@@ -246,6 +310,7 @@ final class CampaignGame extends ApplicationAdapter {
         if (Gdx.input.justTouched()) {
             int selected = selectedMenuOption(0.33f, 0.55f, 0.075f, 4);
             if (selected >= 0) {
+                if (selected != pauseSelection) audio.navigate();
                 pauseSelection = selected;
                 activatePauseOption();
             }
@@ -255,6 +320,7 @@ final class CampaignGame extends ApplicationAdapter {
     }
 
     private void activatePauseOption() {
+        audio.confirm();
         switch (pauseSelection) {
             case 0: setPauseMenu(false); break;
             case 1: VisualComfort.toggle(); break;
@@ -284,8 +350,11 @@ final class CampaignGame extends ApplicationAdapter {
     private void setPauseMenu(boolean open) {
         pauseMenu = open;
         pauseSelection = 0;
+        if (open) progress.resetBossIdle();
+        if (open) setBossCharging(false);
         if (progress.status() == CampaignProgress.Status.RUNNING && active != null) {
-            setPhasePaused(open);
+            setPhasePaused(open || sensorHold);
+            lockActive(open || sensorHold);
             if (open) progress.mascotShield().resetSequence();
         }
     }
@@ -308,14 +377,18 @@ final class CampaignGame extends ApplicationAdapter {
         pauseMenu = false;
         showHelp = false;
         titleSelection = 0;
+        sensorHold = false;
         if (progress.status() == CampaignProgress.Status.RUNNING && !briefing)
             setPhasePaused(true);
         progress.mascotShield().resetSequence();
+        progress.resetBossIdle();
+        setBossCharging(false);
     }
 
     private void continueCampaign() {
         onTitle = false;
         pauseMenu = false;
+        sensorHold = false;
         if (progress.status() == CampaignProgress.Status.RUNNING && !briefing)
             setPhasePaused(false);
     }
@@ -329,9 +402,12 @@ final class CampaignGame extends ApplicationAdapter {
         transitionTime = 0f;
         defeatRestartTime = 0f;
         observedAttackSequence = 0;
+        observedObjectives = 0;
+        observedShieldActivations = 0;
         onTitle = false;
         briefing = true;
         pauseMenu = false;
+        sensorHold = false;
         showHelp = false;
         openPhase();
         lockActive(true);
@@ -346,6 +422,12 @@ final class CampaignGame extends ApplicationAdapter {
         if (active instanceof ReCodePedalGame) ((ReCodePedalGame) active).setCampaignLocked(locked);
         else if (active instanceof PhaseTwoGame) ((PhaseTwoGame) active).setCampaignLocked(locked);
         else if (active instanceof PhaseThreeGame) ((PhaseThreeGame) active).setCampaignLocked(locked);
+    }
+
+    private void setBossCharging(boolean charging) {
+        if (active instanceof PhaseTwoGame) ((PhaseTwoGame) active).setBossCharging(charging);
+        else if (active instanceof PhaseThreeGame)
+            ((PhaseThreeGame) active).setBossCharging(charging);
     }
 
     private void drawTitle() {
@@ -371,9 +453,11 @@ final class CampaignGame extends ApplicationAdapter {
         StageDecor.draw(shapes, width, height, 0.45f, menuTime, 0.2f, 1);
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         shapes.setColor(SHADE);
-        shapes.rect(width * 0.07f, height * 0.12f, width * 0.49f, height * 0.78f);
+        shapes.rect(width * 0.07f, height * 0.12f,
+                width * (showHelp ? 0.86f : 0.49f), height * 0.78f);
         shapes.setColor(CYAN);
-        shapes.rect(width * 0.07f, height * 0.89f, width * 0.49f, 5f);
+        shapes.rect(width * 0.07f, height * 0.89f,
+                width * (showHelp ? 0.86f : 0.49f), 5f);
         if (!showHelp) {
             shapes.setColor(CYAN.r, CYAN.g, CYAN.b, 0.20f);
             shapes.rect(width * 0.10f,
@@ -424,21 +508,28 @@ final class CampaignGame extends ApplicationAdapter {
         font.setColor(CYAN);
         font.getData().setScale(2f);
         font.draw(batch, "Como jogar", width * 0.12f, height * 0.78f);
-        font.getData().setScale(1.15f);
-        font.setColor(Color.WHITE);
-        font.draw(batch, source instanceof KeyboardPedalSource
-                        ? "F alterna; setas cima/baixo escolhem o giro."
-                        : "Gire o antebraco para conduzir ELO.",
-                width * 0.12f, height * 0.68f);
-        font.draw(batch, "Fase 2: mantenha giros regulares.", width * 0.12f, height * 0.59f);
-        font.draw(batch, "Fase 3: segure a inclinacao na chave de rota.",
-                width * 0.12f, height * 0.50f);
-        font.setColor(CYAN);
-        font.draw(batch, "3 pares de giros regulares carregam o escudo.", width * 0.12f, height * 0.39f);
-        font.draw(batch, "A protecao dura 15 segundos de jogo.", width * 0.12f, height * 0.32f);
+        String[] lines = {
+                source instanceof KeyboardPedalSource
+                        ? "CONTROLE: F ou setas geram giros; solte entre movimentos."
+                        : "CONTROLE: gire o antebraco e volte ao centro entre movimentos.",
+                "FASE 1: gire no seu ritmo. Conclua 20 movimentos e repare 3 estruturas.",
+                "FASE 2: gire regularmente. Cada totem usa 8 giros com 2 pares seguidos.",
+                "Se o ritmo variar, continue: o totem conclui em ate 12 movimentos.",
+                "FASE 3: faca 3 giros individuais; ELO troca a rota sozinho.",
+                "Apoie o braco e gire no seu ritmo, voltando ao centro.",
+                "Depois gire: 2 pares regulares e 3 pares estaveis. Repita 3 vezes.",
+                "ESCUDO: 3 pares regulares ativam 15 s de protecao do mascote.",
+                "VIDAS: 3 coracoes. No Zero ataca se ELO ficar parado por muito tempo."
+        };
+        font.getData().setScale(1.03f);
+        for (int i = 0; i < lines.length; i++) {
+            font.setColor(i == 0 || i == 4 || i == 7 ? CYAN : Color.WHITE);
+            font.draw(batch, lines[i], width * 0.12f, height * (0.70f - i * 0.055f));
+        }
         font.setColor(MUTED);
-        font.draw(batch, "Espaco: pausa e opcoes de menu", width * 0.12f, height * 0.23f);
-        font.draw(batch, "Enter ou Esc: voltar", width * 0.12f, height * 0.17f);
+        font.draw(batch, "Espaco: pausa e opcoes  |  Sensor sem sinal: progresso preservado",
+                width * 0.12f, height * 0.21f);
+        font.draw(batch, "Enter ou Esc: voltar", width * 0.12f, height * 0.16f);
     }
 
     private static String comfortOption() {
@@ -461,15 +552,15 @@ final class CampaignGame extends ApplicationAdapter {
         } else if (phase == 2) {
             objective = "Estabilize os tres nos da rede";
             lines = new String[] {
-                    "Repita giros em um ritmo confortavel e regular.",
+                    "Gire regularmente: 8 movimentos e 2 pares por totem.",
+                    "Se variar o ritmo, continue ate 12 movimentos.",
                     "Pares regulares carregam o escudo do mascote.",
-                    "Nao ha limite de tempo para terminar esta fase."
             };
         } else {
             objective = "Restaure o nucleo central";
             lines = new String[] {
                     "Combine giros individuais, ritmo e estabilidade.",
-                    "Na chave, volte ao centro e incline para CIMA ou BAIXO.",
+                    "A rota muda automaticamente apos 3 giros individuais.",
                     "O escudo protege ELO por 15 segundos de jogo."
             };
         }
@@ -542,9 +633,50 @@ final class CampaignGame extends ApplicationAdapter {
         Gdx.gl.glDisable(GL20.GL_BLEND);
     }
 
+    private void drawSensorHold() {
+        int width = Gdx.graphics.getWidth();
+        int height = Gdx.graphics.getHeight();
+        String error = source.error();
+        boolean calibrating = error.startsWith("Mantenha o antebraco");
+        boolean sensorError = error.startsWith("MPU6050 sem sinal");
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(0.01f, 0.02f, 0.06f, 0.88f);
+        shapes.rect(0, 0, width, height);
+        shapes.setColor(SHADE);
+        shapes.rect(width * 0.16f, height * 0.18f, width * 0.68f, height * 0.64f);
+        shapes.setColor(calibrating ? CYAN : DANGER);
+        shapes.rect(width * 0.16f, height * 0.81f, width * 0.68f, 5f);
+        shapes.end();
+
+        batch.begin();
+        font.setColor(calibrating ? CYAN : DANGER);
+        font.getData().setScale(1.75f);
+        font.draw(batch, calibrating ? "Calibrando o sensor" : "Sinal do sensor interrompido",
+                width * 0.22f, height * 0.71f);
+        font.getData().setScale(1.15f);
+        font.setColor(Color.WHITE);
+        font.draw(batch, sensorError ? "Confira solda, alimentacao 3V3 e fios SDA/SCL." :
+                calibrating ? "Mantenha o antebraco na posicao central e estavel." :
+                "Confira o cabo USB, a porta COM e o Monitor Serial.",
+                width * 0.22f, height * 0.56f);
+        font.draw(batch, "A campanha retomara quando o sinal estiver pronto.",
+                width * 0.22f, height * 0.47f);
+        font.setColor(MUTED);
+        font.draw(batch, "Progresso e vidas preservados  |  Espaco: opcoes",
+                width * 0.22f, height * 0.32f);
+        batch.end();
+        Gdx.gl.glDisable(GL20.GL_BLEND);
+    }
+
     private void drawCampaignHud() {
         int width = Gdx.graphics.getWidth();
         int height = Gdx.graphics.getHeight();
+        float warning = progress.bossIdleWarning();
+        float warningX = width * 0.11f;
+        float warningY = height * 0.17f;
+        float warningWidth = Math.min(310f, width * 0.33f);
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         if (combat.hitActive()) {
@@ -568,8 +700,19 @@ final class CampaignGame extends ApplicationAdapter {
             shapes.setColor(shield.active() ? CYAN : SUCCESS);
             shapes.rect(width - 148f, height - 95f, 126f * Math.min(1f, portion), 6f);
         }
+        if (warning > 0f) {
+            shapes.setColor(0.02f, 0.025f, 0.08f, 0.88f);
+            shapes.rect(warningX, warningY, warningWidth, 34f);
+            shapes.setColor(DANGER);
+            shapes.rect(warningX, warningY, warningWidth * warning, 4f);
+        }
         shapes.end();
         batch.begin();
+        if (warning > 0f) {
+            font.getData().setScale(0.95f);
+            font.setColor(DANGER);
+            font.draw(batch, "NO ZERO PREPARA UM ATAQUE", warningX + 9f, warningY + 23f);
+        }
         font.getData().setScale(0.95f);
         font.setColor(Color.WHITE);
         font.draw(batch, "Fase " + progress.phase() + "/3  |  " +
@@ -711,10 +854,10 @@ final class CampaignGame extends ApplicationAdapter {
         menuElo.dispose();
         menuMascot.dispose();
         menuNoZero.dispose();
+        audio.close();
         shapes.dispose();
         font.dispose();
         batch.dispose();
     }
 }
-
 
