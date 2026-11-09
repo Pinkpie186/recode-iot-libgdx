@@ -19,7 +19,6 @@ final class ReCodePedalGame extends ApplicationAdapter {
     private static final Color REPAIRED = new Color(0.32f, 0.90f, 0.64f, 1f);
     private static final Color MUTED_TEXT = new Color(0.70f, 0.79f, 0.88f, 1f);
     private static final String[] STRUCTURE_NAMES = {"RELE", "PONTE", "NUCLEO"};
-    private static final float[] NAME_OFFSETS = {18f, 24f, 28f};
 
     private final PedalSource source;
     private final boolean simulated;
@@ -76,6 +75,7 @@ final class ReCodePedalGame extends ApplicationAdapter {
 
     @Override public void render() {
         long now = System.nanoTime();
+        if (!source.signalAvailable(now)) counter.invalidateSignal();
         // Atalhos para a versao jogavel de cada fase fora da campanha.
         if (manageSource && !campaignLocked && (Gdx.input.isKeyJustPressed(Input.Keys.P) ||
                 Gdx.input.isKeyJustPressed(Input.Keys.SPACE))) progress.togglePause();
@@ -104,8 +104,7 @@ final class ReCodePedalGame extends ApplicationAdapter {
             }
         }
         float deltaTime = Gdx.graphics.getDeltaTime();
-        boolean connected = source.lastFrameNanos() >= 0 &&
-                now - source.lastFrameNanos() <= 2_000_000_000L;
+        boolean connected = source.signalAvailable(now);
         if (!campaignLocked) progress.update(deltaTime, connected && counter.rpm(now) > 0);
         energyPulse = Math.max(0f, energyPulse - deltaTime * 2.5f);
         repairPulse = Math.max(0f, repairPulse - deltaTime * 1.25f);
@@ -183,8 +182,7 @@ final class ReCodePedalGame extends ApplicationAdapter {
 
     private void drawText(int width, int height, float left, float right,
                           float y, float eloX, long now) {
-        boolean connected = source.lastFrameNanos() >= 0 &&
-                now - source.lastFrameNanos() <= 2_000_000_000L;
+        boolean connected = source.signalAvailable(now);
         String status = connected ? (simulated ? "Dados simulados" : "ESP32 conectado") :
                 source.error().isEmpty()
                         ? (simulated ? "Iniciando simulacao" : "Aguardando dados do ESP32")
@@ -207,18 +205,12 @@ final class ReCodePedalGame extends ApplicationAdapter {
         font.draw(batch, "ReCode  |  Circuitos Basicos", left, height - 38);
         font.getData().setScale(1.15f);
         font.setColor(MUTED_TEXT);
-        font.draw(batch, simulated ? "Modo sem sensor conectado"
-                : "Gire o antebraco para conduzir ELO", left, height - 72);
+        font.draw(batch, "ACAO: gire o antebraco e volte ao centro entre giros",
+                left, height - 72);
 
         font.setColor(Color.WHITE);
         font.draw(batch, "Giros: " + progress.rotations() + " / " + PhaseOneProgress.TARGET_ROTATIONS, left, height - 130);
         font.draw(batch, "Estruturas: " + progress.repairedCircuits() + " / 3", right - 230, height - 130);
-        for (int i = 0; i < PhaseOneProgress.REPAIR_AT.length; i++) {
-            float x = left + (right - left) * PhaseOneProgress.REPAIR_AT[i] / PhaseOneProgress.TARGET_ROTATIONS;
-            font.setColor(progress.rotations() >= PhaseOneProgress.REPAIR_AT[i] ? REPAIRED : MUTED_TEXT);
-            font.draw(batch, STRUCTURE_NAMES[i], x - NAME_OFFSETS[i], y - 48);
-        }
-
         font.setColor(MUTED_TEXT);
         font.draw(batch, status, left, 70);
         double rpm = connected ? counter.rpm(now) : 0;
