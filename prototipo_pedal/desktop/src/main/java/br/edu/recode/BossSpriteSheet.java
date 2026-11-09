@@ -26,11 +26,12 @@ final class BossSpriteSheet implements Disposable {
         }
     }
 
-    void draw(SpriteBatch batch, float reveal, float animationTime, boolean attacking,
+    void draw(SpriteBatch batch, float reveal, float animationTime, int attackFrame,
+              boolean charging,
               float centerX, float centerY, float size) {
         int row = reveal < 1f ? 0 : 1;
         int frame = reveal < 1f ? Math.min(3, (int) (reveal * 4f)) :
-                attacking ? 2 + (int) (animationTime / 0.16f) % 2 :
+                attackFrame >= 0 ? attackFrame : charging ? 1 :
                         (int) (animationTime / 0.28f) % 2;
         batch.draw(frames[row][frame], centerX - size / 2f,
                 centerY - size / 2f, size, size);

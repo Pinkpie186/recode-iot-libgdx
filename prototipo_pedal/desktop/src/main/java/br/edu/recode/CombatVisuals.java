@@ -57,11 +57,37 @@ final class CombatVisuals {
     float blockedStrength() { return blockedSeconds / 0.75f; }
     boolean attackFlying() { return attackFlightSeconds > 0f; }
     float attackFlightProgress() { return 1f - attackFlightSeconds / ATTACK_FLIGHT_SECONDS; }
+    int attackPoseFrame() {
+        return attackFlying() ? Math.min(3, (int) (attackFlightProgress() * 4f)) : -1;
+    }
+    float attackPosePulse() {
+        return attackFlying() ? (float) Math.sin(Math.PI * attackFlightProgress()) : 0f;
+    }
     boolean attackBlocked() { return attackBlocked; }
     float impactBeamStrength() { return impactBeamSeconds / IMPACT_BEAM_SECONDS; }
     float hitOffset(float time) {
         return hitActive() && !VisualComfort.softEffects()
                 ? (float) Math.sin(time * 72f) * 9f * hitStrength() : 0f;
+    }
+
+    /** Brilho localizado no chefe durante a preparacao e a saida do disparo. */
+    void drawAttackCharge(ShapeRenderer shapes, float x, float y,
+                          float time, boolean charging) {
+        if (!charging && !attackFlying()) return;
+        float pulse = attackFlying() ? 1f - attackFlightProgress() * 0.6f :
+                0.6f + 0.2f * (float) Math.sin(time * 10f);
+        float radius = 13f + pulse * 12f;
+        shapes.setColor(HIT.r, HIT.g, HIT.b, 0.08f + pulse * 0.11f);
+        shapes.circle(x, y, radius * 1.35f);
+        shapes.setColor(1f, 0.69f, 0.94f, 0.40f + pulse * 0.42f);
+        for (int i = 0; i < 8; i++) {
+            double angle = i * Math.PI / 4d + time * 1.8f;
+            float px = x + (float) Math.cos(angle) * radius;
+            float py = y + (float) Math.sin(angle) * radius;
+            shapes.circle(px, py, 1.5f + pulse * 1.6f);
+        }
+        shapes.setColor(1f, 0.87f, 1f, 0.48f + pulse * 0.30f);
+        shapes.circle(x, y, 3f + pulse * 4f);
     }
 
     /** Orbe em perspectiva: nasce no chefe, cruza a arena e termina em ELO ou no escudo. */

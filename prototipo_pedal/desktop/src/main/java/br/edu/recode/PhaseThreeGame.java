@@ -217,12 +217,13 @@ final class PhaseThreeGame extends ApplicationAdapter {
         batch.begin();
         if (!progress.isComplete()) {
             batch.setColor(Color.WHITE);
-            boolean attacking = shieldPulse > 0 ||
-                    combat.attackFlying() || combat.hitActive() ||
-                    combat.blockedActive() || progress.interferenceActive() ||
-                    bossCharging || manageSource && idleClock.warningProgress(
+            boolean charging = progress.interferenceActive() || bossCharging ||
+                    manageSource && idleClock.warningProgress(
                             BossIdleClock.PHASE_THREE_SECONDS) > 0f;
-            noZero.draw(batch, reveal, animationTime, attacking, bossX, bossY, bossSize);
+            float attackPulse = combat.attackPosePulse();
+            noZero.draw(batch, reveal, animationTime, combat.attackPoseFrame(),
+                    charging, bossX - 6f * attackPulse, bossY,
+                    bossSize * (1f + 0.03f * attackPulse));
             batch.setColor(Color.WHITE);
         }
         batch.end();
@@ -271,6 +272,9 @@ final class PhaseThreeGame extends ApplicationAdapter {
                     charge, animationTime);
         }
 
+        combat.drawAttackCharge(shapes, mouthX, mouthY, animationTime,
+                bossCharging || manageSource && idleClock.warningProgress(
+                        BossIdleClock.PHASE_THREE_SECONDS) > 0f);
         combat.drawProjectile(shapes, mouthX, mouthY,
                 eloX, eloY + 12f, animationTime);
         combat.drawCompact(shapes, eloX, eloY + 12f, animationTime, shield);

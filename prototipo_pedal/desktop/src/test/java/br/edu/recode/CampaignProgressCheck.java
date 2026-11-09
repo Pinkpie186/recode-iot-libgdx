@@ -21,6 +21,7 @@ public final class CampaignProgressCheck {
         mascotShieldLastsFifteenPlayingSeconds();
         shieldBlocksThenAllowsTheNextHit();
         phaseThreeAttackReachesEloBeforeImpact();
+        bossAttackAnimationFollowsTheShot();
         cameraAndEloFollowMovementWithoutJumping();
         fragmentsReactToEloProgress();
         System.out.println("CampaignProgressCheck: OK");
@@ -430,6 +431,23 @@ public final class CampaignProgressCheck {
         visuals.update(0.74f);
         require(visuals.blockedActive() && !visuals.hitActive(),
                 "bloqueio aparece quando o disparo chega ao escudo");
+    }
+
+    private static void bossAttackAnimationFollowsTheShot() {
+        CombatVisuals visuals = new CombatVisuals();
+        require(visuals.attackPoseFrame() == -1, "chefe em repouso antes do ataque");
+        visuals.launchHit();
+        require(visuals.attackPoseFrame() == 0, "chefe inicia a carga ao disparar");
+        visuals.update(0.19f);
+        require(visuals.attackPoseFrame() == 1, "energia cresce durante o voo");
+        visuals.update(0.19f);
+        require(visuals.attackPoseFrame() == 2 && visuals.attackPosePulse() > 0f,
+                "quadro de disparo acompanha o projetil");
+        visuals.update(0.19f);
+        require(visuals.attackPoseFrame() == 3, "chefe recua antes do impacto");
+        visuals.update(0.16f);
+        require(visuals.attackPoseFrame() == -1 && visuals.hitActive(),
+                "animacao termina quando o disparo atinge ELO");
     }
 
     private static void require(boolean condition, String description) {
