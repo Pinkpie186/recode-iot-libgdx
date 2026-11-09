@@ -67,7 +67,7 @@ Nas fases 2 e 3, a interferência de Nó Zero dura no máximo **3 segundos de jo
 
 Se ELO ficar sem giros válidos, Nó Zero também prepara um disparo: após **7 segundos** na fase 2 ou **6 segundos** na fase 3. Um aviso aparece nos 2 segundos finais. Um giro válido reinicia esse preparo; a pausa e a perda do sinal do sensor também o interrompem. O escudo ativo bloqueia o disparo. Para descansar sem receber ataques, abra a pausa com `Espaço`.
 
-Os quadros de ELO alternam entre repouso, corrida, impacto e reparo. O avanço do personagem e o deslocamento do cenário usam o tempo de cada quadro para acompanhar os gestos sem saltos visuais; elementos próximos e distantes se movem em velocidades diferentes. Nas fases 2 e 3, os disparos de Nó Zero mostram direção, trajetória e impacto; na fase final eles partem do chefe ao fundo e chegam até ELO ou ao escudo.
+Os quadros de ELO alternam entre repouso, corrida, impacto e reparo. O avanço do personagem e o deslocamento do cenário usam o tempo de cada quadro para acompanhar os gestos sem saltos visuais; elementos próximos e distantes se movem em velocidades diferentes. Nas fases 2 e 3, os disparos de Nó Zero mostram direção, trajetória e impacto; na fase final eles partem do chefe ao fundo e chegam até ELO ou ao escudo. Os quadros do próprio Nó Zero acompanham cada disparo: ele acumula energia, lança o ataque e recua, com um brilho curto na origem do projétil.
 
 Para conferir a lógica sem abrir a janela, execute `gradle verifyCampaign` na pasta `desktop/`. Para abrir a fase 3 separadamente, use `gradle run -Pphase=3 -Pkeyboard=true`. Os resultados da tentativa aparecem ao final da campanha, com giros, objetivos, pares regulares e tempo com movimento por fase. Esses números descrevem apenas o desempenho no jogo.
 

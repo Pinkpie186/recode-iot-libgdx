@@ -198,7 +198,12 @@ final class PhaseTwoGame extends ApplicationAdapter {
                 bossX, bossY, bossSize, connected, now);
         // O tiro fica a frente do chefe e de ELO para mostrar o contato real.
         shapes.begin(ShapeRenderer.ShapeType.Filled);
-        combat.drawProjectile(shapes, bossX - bossSize * 0.17f, bossY + bossSize * 0.08f,
+        float attackX = bossX - bossSize * 0.17f;
+        float attackY = bossY + bossSize * 0.08f;
+        combat.drawAttackCharge(shapes, attackX, attackY, animationTime,
+                bossCharging || manageSource && idleClock.warningProgress(
+                        BossIdleClock.PHASE_TWO_SECONDS) > 0f);
+        combat.drawProjectile(shapes, attackX, attackY,
                 eloX, trackY + 15f, animationTime);
         shapes.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);
@@ -298,12 +303,20 @@ final class PhaseTwoGame extends ApplicationAdapter {
             batch.setColor(Color.WHITE);
             mascot.draw(batch, shield.active() ? 2 : progress.interferenceActive() ? 2 : 0,
                     animationTime, Math.min(right - 25, eloX + 56), y + 84, 63);
-            int enemyRow = nodePulse > 0 ? 2 :
-                    combat.attackFlying() || combat.hitActive() ||
-                    combat.blockedActive() || progress.interferenceActive() ||
-                    bossCharging || manageSource && idleClock.warningProgress(
-                            BossIdleClock.PHASE_TWO_SECONDS) > 0f ? 1 : 0;
-            noZero.draw(batch, enemyRow, animationTime, bossX, bossY, bossSize);
+            int attackFrame = combat.attackPoseFrame();
+            float attackPulse = combat.attackPosePulse();
+            if (attackFrame >= 0) {
+                noZero.drawFrame(batch, 1, attackFrame, bossX - 6f * attackPulse,
+                        bossY, bossSize * (1f + 0.04f * attackPulse));
+            } else if (bossCharging || manageSource && idleClock.warningProgress(
+                    BossIdleClock.PHASE_TWO_SECONDS) > 0f) {
+                noZero.drawFrame(batch, 1, (int) (animationTime / 0.25f) % 2,
+                        bossX, bossY, bossSize);
+            } else {
+                int enemyRow = nodePulse > 0 || progress.interferenceActive() ? 2 :
+                        combat.hitActive() || combat.blockedActive() ? 3 : 0;
+                noZero.draw(batch, enemyRow, animationTime, bossX, bossY, bossSize);
+            }
         }
 
         font.setColor(Color.WHITE);

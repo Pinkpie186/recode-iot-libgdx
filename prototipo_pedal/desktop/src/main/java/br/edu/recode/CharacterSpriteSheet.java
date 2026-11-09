@@ -33,6 +33,11 @@ final class CharacterSpriteSheet implements Disposable {
     void draw(SpriteBatch batch, int animationRow, float animationTime,
               float centerX, float centerY, float size) {
         int frame = (int) (animationTime / FRAME_SECONDS) % GRID;
+        drawFrame(batch, animationRow, frame, centerX, centerY, size);
+    }
+
+    void drawFrame(SpriteBatch batch, int animationRow, int frame,
+                   float centerX, float centerY, float size) {
         batch.draw(frames[animationRow][frame], centerX - size / 2,
                 centerY - size / 2, size, size);
     }
