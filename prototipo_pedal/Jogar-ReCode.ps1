@@ -49,9 +49,11 @@ try {
         if (-not $Port) {
             $ports = @(& java -cp $classpath br.edu.recode.SerialPortLister)
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            $ports = @($ports | Where-Object { $_ -match '^([^\s]+)\t' })
+            $ports = @($ports | Where-Object {
+                $_ -match '^([^\s]+)\t' -and $_ -notmatch '(?i)bluetooth|bthenum'
+            })
             if ($ports.Count -eq 0) {
-                Write-Host 'Conecte o ESP32 e feche o Monitor Serial antes de jogar.'
+                Write-Host 'ESP32 nao detectado. Conecte-o por USB e feche o Monitor Serial antes de jogar.'
                 exit 1
             }
             Write-Host 'Portas seriais encontradas:'
