@@ -10,6 +10,7 @@ public final class CampaignProgressCheck {
         phaseTwoRequiresContinuousRhythm();
         phaseTwoNeverStopsAtSecondTotem();
         phaseTwoBossAttacksEvenWithRegularRhythm();
+        interferenceEndsAfterThreeSeconds();
         idleBossAttacksInPhaseTwoAndRespectsRest();
         idleBossAttacksInPhaseThreeAndShieldBlocks();
         phaseThreeRequiresOrderedSequence();
@@ -129,6 +130,48 @@ public final class CampaignProgressCheck {
         require(run.attackSequence() == 1 && run.lastAttackBlocked() &&
                 run.integrity() == 3 && run.pendingHits() == 0,
                 "No Zero dispara no primeiro no e o ritmo regular protege ELO");
+    }
+
+    private static void interferenceEndsAfterThreeSeconds() {
+        PhaseTwoProgress second = new PhaseTwoProgress();
+        second.acceptTurns(1, 1000);
+        second.acceptTurns(1, 2000);
+        require(second.interferenceActive(), "fase 2 inicia interferencia no totem");
+        second.update(1.5f, false);
+        second.togglePause();
+        second.update(10f, false);
+        require(second.interferenceActive(), "pausa conserva o tempo da interferencia");
+        second.togglePause();
+        second.update(1.49f, false);
+        require(second.interferenceActive(), "interferencia dura ate tres segundos de jogo");
+        second.update(0.02f, false);
+        require(!second.interferenceActive(), "interferencia da fase 2 termina em tres segundos");
+        second.acceptTurns(4, 3000);
+        require(!second.interferenceActive(), "interferencia nao reinicia no mesmo totem");
+        second.acceptTurns(6, 4000);
+        second.acceptTurns(1, 5000);
+        second.acceptTurns(1, 6000);
+        require(second.interferenceActive(), "proximo totem recebe sua propria janela");
+
+        PhaseThreeProgress third = new PhaseThreeProgress();
+        third.acceptTurns(2, 1000);
+        require(third.interferenceActive(), "fase 3 inicia interferencia na estacao");
+        third.update(3f, false);
+        require(!third.interferenceActive(), "interferencia da fase 3 termina em tres segundos");
+        third.acceptTurns(1, 2000);
+        require(!third.interferenceActive(), "fase 3 nao reinicia na mesma estacao");
+
+        CampaignProgress run = new CampaignProgress();
+        run.first().addRotations(20);
+        run.observe();
+        run.advance();
+        run.second().acceptTurns(2, 1000);
+        run.observe();
+        run.second().update(3.1f, false);
+        run.second().acceptTurns(4, 2000);
+        run.observe();
+        require(run.attackSequence() == 0,
+                "interferencia encerrada nao dispara depois de tres segundos");
     }
 
     private static void idleBossAttacksInPhaseTwoAndRespectsRest() {

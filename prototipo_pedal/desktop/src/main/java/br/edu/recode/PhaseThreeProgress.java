@@ -22,6 +22,7 @@ final class PhaseThreeProgress {
     private float movingSeconds;
     private long lastTurnMillis = -1;
     private long lastIntervalMillis = -1;
+    private final InterferenceWindow interference = new InterferenceWindow();
 
     /** A rota muda automaticamente ao concluir os tres giros de precisao. */
     int acceptTurns(int turns, long lastCycleMillis) {
@@ -52,6 +53,7 @@ final class PhaseThreeProgress {
             totalTurns++;
             boolean individual = turns == 1;
             if (steady && individual) stablePairsTotal++;
+            if (shieldTurns >= 2) interference.trigger();
 
             switch (step) {
                 case PRECISION:
@@ -76,6 +78,7 @@ final class PhaseThreeProgress {
                         restored++;
                         shieldTurns = precisionTurns = rhythmStreak = stabilityStreak = 0;
                         step = Step.PRECISION;
+                        interference.reset();
                         lastTurnMillis = lastIntervalMillis = -1;
                     }
                     break;
@@ -87,6 +90,7 @@ final class PhaseThreeProgress {
     }
 
     void update(float seconds, boolean movingWithSignal) {
+        interference.update(seconds, !paused && !isComplete());
         if (!paused && !isComplete() && totalTurns > 0 && movingWithSignal)
             movingSeconds += Math.max(0f, seconds);
     }
@@ -105,6 +109,7 @@ final class PhaseThreeProgress {
         paused = false;
         movingSeconds = 0f;
         lastTurnMillis = lastIntervalMillis = -1;
+        interference.reset();
     }
 
     int shields() { return shields; }
@@ -125,8 +130,8 @@ final class PhaseThreeProgress {
     int activeRoute() { return (shields + (routeChanged() ? 1 : 0)) % 2; }
     int restoredConduits() { return shields * 2 + (routeChanged() ? 1 : 0); }
     boolean interferenceActive() {
-        return !isComplete() && shieldTurns >= 2 &&
-                (step != Step.STABILITY || stabilityStreak < STABILITY_PAIRS);
+        return !isComplete() && interference.active();
     }
+    float interferenceRemaining() { return interference.remainingSeconds(); }
 }
 

@@ -63,6 +63,8 @@ final class CampaignProgress {
 
     private void observeInterference(int objective, int segmentTurns, int pairs,
                                      int requiredPairs, int target) {
+        boolean interferenceActive = phase == 2 ? second.interferenceActive() :
+                third.interferenceActive();
         if (objective != observedObjective) {
             observedObjective = objective;
             nextStrikeAt = phase == 2 ? PHASE_TWO_OPENING_STRIKE
@@ -72,7 +74,7 @@ final class CampaignProgress {
         // cria uma barreira da rede mesmo se o escudo do mascote expirou.
         if (phase == 2 && nextStrikeAt == PHASE_TWO_OPENING_STRIKE &&
                 segmentTurns >= PHASE_TWO_OPENING_STRIKE) {
-            registerAttack(pairs >= requiredPairs);
+            if (interferenceActive) registerAttack(pairs >= requiredPairs);
             nextStrikeAt = target + EXTRA_TURNS_PER_STRIKE;
         }
         if (integrity == 0) {
@@ -83,7 +85,7 @@ final class CampaignProgress {
         // cuida separadamente do caso em que ELO para por completo.
         if (segmentTurns < target || pairs >= requiredPairs) return;
         while (segmentTurns >= nextStrikeAt && integrity > pendingHits) {
-            registerAttack(false);
+            if (interferenceActive) registerAttack(false);
             nextStrikeAt += EXTRA_TURNS_PER_STRIKE;
         }
         if (integrity == 0) status = Status.DEFEAT;

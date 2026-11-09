@@ -16,6 +16,7 @@ final class PhaseTwoProgress {
     private float movingSeconds;
     private long lastTurnMillis = -1;
     private long lastIntervalMillis = -1;
+    private final InterferenceWindow interference = new InterferenceWindow();
 
     /** Retorna quantos nos foram estabilizados nesta leitura. */
     int acceptTurns(int turns, long lastCycleMillis) {
@@ -47,12 +48,15 @@ final class PhaseTwoProgress {
                 // O no precisa de uma sequencia continua de movimentos regulares.
                 stablePairs = 0;
             }
+            if (nodeTurns >= 2 && stablePairs < STABLE_PAIRS_PER_NODE)
+                interference.trigger();
             if ((nodeTurns >= TURNS_PER_NODE && stablePairs >= STABLE_PAIRS_PER_NODE) ||
                     nodeTurns >= MAX_TURNS_PER_NODE) {
                 nodes++;
                 repaired++;
                 nodeTurns = 0;
                 stablePairs = 0;
+                interference.reset();
                 lastTurnMillis = -1;
                 lastIntervalMillis = -1;
             }
@@ -61,6 +65,7 @@ final class PhaseTwoProgress {
     }
 
     void update(float seconds, boolean movingWithSignal) {
+        interference.update(seconds, !paused && !isComplete());
         if (!paused && !isComplete() && totalTurns > 0 && movingWithSignal)
             movingSeconds += Math.max(0f, seconds);
     }
@@ -78,6 +83,7 @@ final class PhaseTwoProgress {
         paused = false;
         movingSeconds = 0f;
         lastTurnMillis = lastIntervalMillis = -1;
+        interference.reset();
     }
 
     int nodes() { return nodes; }
@@ -87,6 +93,7 @@ final class PhaseTwoProgress {
     int totalTurns() { return totalTurns; }
     boolean isPaused() { return paused; }
     boolean isComplete() { return nodes == NODE_COUNT; }
-    boolean interferenceActive() { return !isComplete() && nodeTurns >= 2 && stablePairs < STABLE_PAIRS_PER_NODE; }
+    boolean interferenceActive() { return !isComplete() && interference.active(); }
+    float interferenceRemaining() { return interference.remainingSeconds(); }
     float movingSeconds() { return movingSeconds; }
 }
