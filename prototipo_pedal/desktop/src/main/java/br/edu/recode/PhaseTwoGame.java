@@ -20,8 +20,6 @@ final class PhaseTwoGame extends ApplicationAdapter {
     private static final Color RESTORED = new Color(0.31f, 0.91f, 0.68f, 1f);
     private static final Color CORRUPTION = new Color(0.84f, 0.20f, 0.76f, 1f);
     private static final Color MUTED = new Color(0.72f, 0.79f, 0.91f, 1f);
-    private static final String[] STRUCTURE_NAMES = {"ANTENA", "REFLETOR", "FILTRO"};
-    private static final float[] NAME_OFFSETS = {26f, 34f, 23f};
 
     private final PedalSource source;
     private final boolean simulated;
@@ -32,6 +30,7 @@ final class PhaseTwoGame extends ApplicationAdapter {
     private final CombatVisuals combat;
     private final EnergyFragments fragments;
     private final StageMotion motion = new StageMotion();
+    private final BossIdleClock idleClock = new BossIdleClock();
     private final float[] nodeBuild = new float[PhaseTwoProgress.NODE_COUNT];
     private final float[] nodeFlash = new float[PhaseTwoProgress.NODE_COUNT];
     private SpriteBatch batch;
@@ -49,8 +48,10 @@ final class PhaseTwoGame extends ApplicationAdapter {
     private String movementFeedback = "";
     private boolean positiveFeedback;
     private boolean campaignLocked;
+    private boolean bossCharging;
 
     void setCampaignLocked(boolean locked) { campaignLocked = locked; }
+    void setBossCharging(boolean charging) { bossCharging = charging; }
 
     PhaseTwoGame(PedalSource source, boolean simulated) {
         this(source, simulated, new PedalCounter(), new PhaseTwoProgress(), true,
@@ -96,10 +97,13 @@ final class PhaseTwoGame extends ApplicationAdapter {
 
     @Override public void render() {
         long now = System.nanoTime();
+        if (!source.signalAvailable(now)) counter.invalidateSignal();
         if (manageSource && !campaignLocked && (Gdx.input.isKeyJustPressed(Input.Keys.P) ||
                 Gdx.input.isKeyJustPressed(Input.Keys.SPACE))) progress.togglePause();
         if (manageSource && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             progress.restart();
+            idleClock.reset();
+            combat.reset();
             energyPulse = nodePulse = feedbackSeconds = 0f;
             Arrays.fill(nodeBuild, 0f);
             Arrays.fill(nodeFlash, 0f);
@@ -133,14 +137,20 @@ final class PhaseTwoGame extends ApplicationAdapter {
             }
         }
         float delta = Gdx.graphics.getDeltaTime();
-        boolean connected = source.lastFrameNanos() >= 0 &&
-                now - source.lastFrameNanos() <= 2_000_000_000L;
+        boolean connected = source.signalAvailable(now);
         if (!campaignLocked) progress.update(delta, connected && counter.rpm(now) > 0);
         if (manageSource) shield.update(delta, !progress.isPaused() && !progress.isComplete());
         if (!progress.isPaused()) combat.update(delta);
         if (!progress.isPaused()) animationTime += delta;
         if (!campaignLocked && !progress.isPaused() && !progress.isComplete())
             bossRevealSeconds = Math.min(BOSS_REVEAL_SECONDS, bossRevealSeconds + delta);
+        if (manageSource && idleClock.update(Math.min(0.1f, delta),
+                progress.totalTurns(), BossIdleClock.PHASE_TWO_SECONDS,
+                connected && !progress.isPaused() && !progress.isComplete(),
+                combat.attackFlying() || combat.hitActive() || combat.blockedActive())) {
+            if (shield.blockAttack()) combat.launchBlocked();
+            else combat.launchHit();
+        }
         energyPulse = Math.max(0f, energyPulse - delta * 2.4f);
         nodePulse = Math.max(0f, nodePulse - delta * 1.2f);
         if (!progress.isPaused()) feedbackSeconds = Math.max(0f, feedbackSeconds - delta);
@@ -159,7 +169,7 @@ final class PhaseTwoGame extends ApplicationAdapter {
         float trackY = height * 0.45f;
         float segment = (right - left) / PhaseTwoProgress.NODE_COUNT;
         float fraction = progress.nodes() +
-                Math.min(1f, progress.nodeTurns() / (float) PhaseTwoProgress.TURNS_PER_NODE);
+                Math.min(1f, progress.nodeTurns() / (float) PhaseTwoProgress.MAX_TURNS_PER_NODE);
         float targetX = left + segment * fraction;
         float targetJourney = Math.min(1f, fraction / PhaseTwoProgress.NODE_COUNT);
         motion.update(targetX, targetJourney, delta, progress.isPaused());
@@ -241,7 +251,7 @@ final class PhaseTwoGame extends ApplicationAdapter {
             float x = left + segment * (i + 1);
             boolean current = i == progress.nodes() && !progress.isComplete();
             float charge = i < progress.nodes() ? 1f : current
-                    ? progress.nodeTurns() / (float) PhaseTwoProgress.TURNS_PER_NODE : 0f;
+                    ? progress.nodeTurns() / (float) PhaseTwoProgress.MAX_TURNS_PER_NODE : 0f;
             NetworkStructureVisuals.draw(shapes, i, x, y, nodeBuild[i], nodeFlash[i],
                     charge, current && progress.interferenceActive(), animationTime);
         }
@@ -290,7 +300,9 @@ final class PhaseTwoGame extends ApplicationAdapter {
                     animationTime, Math.min(right - 25, eloX + 56), y + 84, 63);
             int enemyRow = nodePulse > 0 ? 2 :
                     combat.attackFlying() || combat.hitActive() ||
-                    combat.blockedActive() || progress.interferenceActive() ? 1 : 0;
+                    combat.blockedActive() || progress.interferenceActive() ||
+                    bossCharging || manageSource && idleClock.warningProgress(
+                            BossIdleClock.PHASE_TWO_SECONDS) > 0f ? 1 : 0;
             noZero.draw(batch, enemyRow, animationTime, bossX, bossY, bossSize);
         }
 
@@ -299,16 +311,10 @@ final class PhaseTwoGame extends ApplicationAdapter {
         font.draw(batch, "ReCode  |  Rede Instavel", left, height - 37);
         font.getData().setScale(1.1f);
         font.setColor(MUTED);
-        font.draw(batch, simulated ? "Modo sem sensor conectado" :
-                "Mantenha seu ritmo confortavel para estabilizar a rede", left, height - 71);
+        font.draw(batch, "ACAO: gire o antebraco em ritmo regular", left, height - 71);
         font.setColor(Color.WHITE);
         font.draw(batch, "Estruturas: " + progress.nodes() + " / 3", left, height - 130);
         font.draw(batch, "Giros validos: " + progress.totalTurns(), right - 250, height - 130);
-        for (int i = 0; i < PhaseTwoProgress.NODE_COUNT; i++) {
-            float x = left + segment * (i + 1);
-            font.setColor(i < progress.nodes() ? RESTORED : MUTED);
-            font.draw(batch, STRUCTURE_NAMES[i], x - NAME_OFFSETS[i], y - 55);
-        }
         if (!progress.isPaused() && !progress.isComplete()) {
             font.setColor(CORRUPTION);
             font.draw(batch, "NO ZERO", width * 0.80f, y - 78);
@@ -319,9 +325,9 @@ final class PhaseTwoGame extends ApplicationAdapter {
         font.draw(batch, "Ritmo: " + Math.round(connected ? counter.rpm(now) : 0) + " giros/min",
                 right - 165, 73);
         if (!progress.isComplete()) {
-            font.draw(batch, "Estrutura atual: " + Math.min(progress.nodeTurns(), PhaseTwoProgress.TURNS_PER_NODE)
-                    + "/8 giros; pares seguidos: " + Math.min(progress.stablePairs(), 2)
-                    + "/2", left, 47);
+            font.draw(batch, "Totem: " + progress.nodeTurns() + "/" +
+                    PhaseTwoProgress.MAX_TURNS_PER_NODE + " giros; " +
+                    Math.min(progress.stablePairs(), 2) + "/2 pares regulares", left, 47);
             font.setColor(feedbackSeconds > 0f ? positiveFeedback ? RESTORED : MUTED
                     : progress.interferenceActive() ? CORRUPTION : RESTORED);
             font.draw(batch, feedbackSeconds > 0f ? movementFeedback
@@ -330,6 +336,11 @@ final class PhaseTwoGame extends ApplicationAdapter {
             font.setColor(MUTED);
             font.draw(batch, manageSource ? "P/Espaco: pausa   R: reiniciar"
                     : "Espaco: opcoes", right - 276, 24);
+            if (manageSource && idleClock.warningProgress(
+                    BossIdleClock.PHASE_TWO_SECONDS) > 0f) {
+                font.setColor(CORRUPTION);
+                font.draw(batch, "NO ZERO PREPARA UM ATAQUE", left, height * 0.19f);
+            }
         }
 
         if (progress.isPaused()) {

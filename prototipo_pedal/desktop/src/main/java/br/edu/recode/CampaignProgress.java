@@ -12,6 +12,7 @@ final class CampaignProgress {
     private final PhaseTwoProgress second = new PhaseTwoProgress();
     private final PhaseThreeProgress third = new PhaseThreeProgress();
     private final MascotShield mascotShield = new MascotShield();
+    private final BossIdleClock idleClock = new BossIdleClock();
     private final EnergyFragments[] fragments = {
             new EnergyFragments(), new EnergyFragments(), new EnergyFragments()
     };
@@ -78,8 +79,8 @@ final class CampaignProgress {
             status = Status.DEFEAT;
             return;
         }
-        // Depois da abertura, novos ataques so ocorrem se faltar regularidade.
-        // Uma cadencia lenta e regular nunca causa dano; nao existe cronometro.
+        // Estes ataques respondem aos giros irregulares. O relogio de inatividade
+        // cuida separadamente do caso em que ELO para por completo.
         if (segmentTurns < target || pairs >= requiredPairs) return;
         while (segmentTurns >= nextStrikeAt && integrity > pendingHits) {
             registerAttack(false);
@@ -95,6 +96,27 @@ final class CampaignProgress {
         if (!lastAttackBlocked) pendingHits++;
     }
 
+    /** Um periodo sem giros permite ao chefe atacar mesmo com ELO parado. */
+    void updateBossIdle(float seconds, boolean playing, boolean attackBusy) {
+        if (status != Status.RUNNING || phase == 1) {
+            idleClock.reset();
+            return;
+        }
+        int currentTurns = phase == 2 ? second.totalTurns() : third.totalTurns();
+        float delay = phase == 2 ? BossIdleClock.PHASE_TWO_SECONDS :
+                BossIdleClock.PHASE_THREE_SECONDS;
+        if (idleClock.update(seconds, currentTurns, delay, playing,
+                attackBusy || pendingHits > 0)) registerAttack(false);
+    }
+
+    float bossIdleWarning() {
+        if (status != Status.RUNNING || phase == 1) return 0f;
+        return idleClock.warningProgress(phase == 2 ?
+                BossIdleClock.PHASE_TWO_SECONDS : BossIdleClock.PHASE_THREE_SECONDS);
+    }
+
+    void resetBossIdle() { idleClock.reset(); }
+
     void resolveHit() {
         if (pendingHits <= 0 || integrity <= 0) return;
         pendingHits--;
@@ -105,6 +127,7 @@ final class CampaignProgress {
     void advance() {
         if (status != Status.BETWEEN_PHASES) throw new IllegalStateException("Fase ainda em andamento");
         phase++;
+        idleClock.reset();
         observedObjective = -1;
         status = Status.RUNNING;
     }

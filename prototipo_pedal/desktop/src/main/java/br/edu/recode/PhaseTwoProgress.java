@@ -4,6 +4,7 @@ package br.edu.recode;
 final class PhaseTwoProgress {
     static final int NODE_COUNT = 3;
     static final int TURNS_PER_NODE = 8; // Meta ludica por no.
+    static final int MAX_TURNS_PER_NODE = 12; // Evita bloquear a fase por ritmo variavel.
     static final int STABLE_PAIRS_PER_NODE = 2;
 
     private int nodes;
@@ -46,7 +47,8 @@ final class PhaseTwoProgress {
                 // O no precisa de uma sequencia continua de movimentos regulares.
                 stablePairs = 0;
             }
-            if (nodeTurns >= TURNS_PER_NODE && stablePairs >= STABLE_PAIRS_PER_NODE) {
+            if ((nodeTurns >= TURNS_PER_NODE && stablePairs >= STABLE_PAIRS_PER_NODE) ||
+                    nodeTurns >= MAX_TURNS_PER_NODE) {
                 nodes++;
                 repaired++;
                 nodeTurns = 0;
