@@ -30,8 +30,10 @@ final class PedalFrame {
         String state = string(root, "state");
         if ("calibrating".equals(state))
             throw new IllegalArgumentException("Mantenha o antebraco neutro para calibrar");
+        if ("sensor_error".equals(state))
+            throw new IllegalArgumentException("MPU6050 sem sinal: confira solda e fios");
         if (!"ok".equals(state))
-            throw new IllegalArgumentException("MPU6050 nao esta pronto");
+            throw new IllegalArgumentException("Estado desconhecido do MPU6050");
         long sequence = number(root, "seq");
         long ms = number(root, "ms");
         long rotations = number(root, "movement");
@@ -43,7 +45,8 @@ final class PedalFrame {
         float angleDeg = angle == null ? Float.NaN : angle.asFloat();
         if (sequence < 0 || ms < 0 || rotations < 0 || lastCycleMs < 0 || lastCycleMs > ms ||
                 direction < -1 || direction > 1 ||
-                angle != null && (!Float.isFinite(angleDeg) || Math.abs(angleDeg) > 180f))
+                angle != null && (!Float.isFinite(angleDeg) ||
+                        Math.abs(angleDeg) > 180f))
             throw new IllegalArgumentException("invalid value");
         return new PedalFrame(sequence, ms, rotations, lastCycleMs, (int) direction, angleDeg);
     }
@@ -60,4 +63,3 @@ final class PedalFrame {
         return field.asString();
     }
 }
-

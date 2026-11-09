@@ -55,6 +55,12 @@ final class PedalCounter {
         return rpm;
     }
 
+    void invalidateSignal() {
+        lastSequence = lastDeviceMillis = lastRotations = lastCycleMillis = -1;
+        lastReceivedNanos = lastRotationNanos = -1;
+        rpm = 0;
+    }
+
     private void baseline(PedalFrame frame, long receivedNanos) {
         lastSequence = frame.sequence;
         lastDeviceMillis = frame.deviceMillis;

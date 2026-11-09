@@ -15,6 +15,7 @@ constexpr uint32_t SAMPLE_MS = 20;
 constexpr uint32_t SEND_MS = 100;
 constexpr uint32_t MIN_GESTURE_MS = 250;
 constexpr int CALIBRATION_SAMPLES = 100;
+constexpr float MAX_CALIBRATION_DRIFT_DEGREES = 8.0f;
 constexpr float ENTER_DEGREES = 25.0f;
 constexpr float RELEASE_DEGREES = 10.0f;
 // Troque para -1 se a montagem inverter cima/baixo.
@@ -36,8 +37,12 @@ float referenceY = 0.0f;
 float referenceZ = 0.0f;
 float sumY = 0.0f;
 float sumZ = 0.0f;
+float calibrationBaseY = 0.0f;
+float calibrationBaseZ = 0.0f;
 float filteredY = 0.0f;
 float filteredZ = 0.0f;
+float lastAngleDeg = 0.0f;
+float lastAccelG = 0.0f;
 
 bool readRegister(uint8_t address, uint8_t reg, uint8_t &value) {
   Wire.beginTransmission(address);
@@ -68,8 +73,10 @@ bool findSensor() {
       calibrated = false;
       calibrationCount = 0;
       sumY = sumZ = 0.0f;
+      calibrationBaseY = calibrationBaseZ = 0.0f;
       zone = lastDirection = 0;
       movementCount = lastGestureAt = 0;
+      lastAngleDeg = lastAccelG = 0.0f;
       return true;
     }
   }
@@ -91,13 +98,36 @@ void sampleMotion(uint32_t now) {
   int16_t ax, ay, az;
   if (!readAcceleration(ax, ay, az)) {
     sensorReady = calibrated = false;
+    calibrationCount = 0;
+    lastAngleDeg = lastAccelG = 0.0f;
     return;
   }
   const float g = sqrtf((float)ax * ax + (float)ay * ay + (float)az * az) / 16384.0f;
+  lastAccelG = g;
   // A inclinacao pelo acelerometro so e usada com gravidade proxima de 1 g.
-  if (g < 0.70f || g > 1.30f) return;
+  if (g < 0.70f || g > 1.30f) {
+    if (!calibrated) {
+      calibrationCount = 0;
+      sumY = sumZ = 0.0f;
+    }
+    return;
+  }
 
   if (!calibrated) {
+    if (calibrationCount == 0) {
+      calibrationBaseY = ay;
+      calibrationBaseZ = az;
+    } else {
+      const float dot = calibrationBaseY * ay + calibrationBaseZ * az;
+      const float cross = calibrationBaseY * az - calibrationBaseZ * ay;
+      const float drift = atan2f(cross, dot) * 180.0f / PI;
+      if (fabsf(drift) > MAX_CALIBRATION_DRIFT_DEGREES) {
+        calibrationCount = 0;
+        sumY = sumZ = 0.0f;
+        calibrationBaseY = ay;
+        calibrationBaseZ = az;
+      }
+    }
     sumY += ay;
     sumZ += az;
     if (++calibrationCount >= CALIBRATION_SAMPLES) {
@@ -120,6 +150,7 @@ void sampleMotion(uint32_t now) {
   const float dot = referenceY * filteredY + referenceZ * filteredZ;
   const float cross = referenceY * filteredZ - referenceZ * filteredY;
   const float angle = DIRECTION_SIGN * atan2f(cross, dot) * 180.0f / PI;
+  lastAngleDeg = angle;
   if (zone != 0) {
     if (fabsf(angle) <= RELEASE_DEGREES) zone = 0;
     return;
@@ -143,6 +174,12 @@ void sendFrame(uint32_t now) {
   Serial.print(lastGestureAt);
   Serial.print(",\"direction\":");
   Serial.print(lastDirection);
+  Serial.print(",\"angleDeg\":");
+  Serial.print(lastAngleDeg, 1);
+  Serial.print(",\"accelG\":");
+  Serial.print(lastAccelG, 2);
+  Serial.print(",\"calibrationSamples\":");
+  Serial.print(calibrationCount);
   Serial.print(",\"state\":\"");
   Serial.print(!sensorReady ? "sensor_error" : !calibrated ? "calibrating" : "ok");
   Serial.println("\"}");
