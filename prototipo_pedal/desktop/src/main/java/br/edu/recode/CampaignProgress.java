@@ -128,6 +128,10 @@ final class CampaignProgress {
 
     void advance() {
         if (status != Status.BETWEEN_PHASES) throw new IllegalStateException("Fase ainda em andamento");
+        if (phase == 2) {
+            integrity = INITIAL_INTEGRITY;
+            pendingHits = 0;
+        }
         phase++;
         idleClock.reset();
         observedObjective = -1;

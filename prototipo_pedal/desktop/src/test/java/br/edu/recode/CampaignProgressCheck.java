@@ -6,6 +6,7 @@ public final class CampaignProgressCheck {
 
     public static void main(String[] args) {
         fullVictoryKeepsAllResults();
+        phaseThreeRestoresAllHearts();
         irregularTurnsCanCauseDefeat();
         phaseTwoRequiresContinuousRhythm();
         phaseTwoNeverStopsAtSecondTotem();
@@ -84,6 +85,31 @@ public final class CampaignProgressCheck {
         require(run.integrity() == 0 && run.turns(2) >= 24,
                 "tres ataques sem protecao encerram a tentativa");
         require(run.turns(1) == 20, "fase anterior mantida na derrota");
+    }
+
+    private static void phaseThreeRestoresAllHearts() {
+        CampaignProgress run = new CampaignProgress();
+        run.first().addRotations(20);
+        run.observe();
+        run.advance();
+        for (int i = 0; i < 2; i++) {
+            run.updateBossIdle(0f, true, false);
+            run.updateBossIdle(BossIdleClock.PHASE_TWO_SECONDS + 0.1f, true, false);
+            run.resolveHit();
+        }
+        require(run.integrity() == 1, "fase 2 registra vidas perdidas");
+        run.second().acceptTurns(36, 1000);
+        run.observe();
+        require(run.status() == CampaignProgress.Status.BETWEEN_PHASES &&
+                run.turns(2) == 36, "resultado da fase 2 permanece salvo");
+        run.advance();
+        require(run.phase() == 3 && run.integrity() == 3 && run.pendingHits() == 0,
+                "fase 3 inicia com tres coracoes e sem dano pendente");
+        require(run.turns(2) == 36, "restaurar vidas preserva desempenho anterior");
+        run.updateBossIdle(0f, true, false);
+        run.updateBossIdle(BossIdleClock.PHASE_THREE_SECONDS + 0.1f, true, false);
+        run.resolveHit();
+        require(run.integrity() == 2, "ataques da fase 3 ainda reduzem vidas");
     }
 
     private static void phaseTwoRequiresContinuousRhythm() {
