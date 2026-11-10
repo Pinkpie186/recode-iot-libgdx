@@ -22,7 +22,7 @@
 <p>
   <a href="#como-jogar"><img alt="Como jogar" src="https://img.shields.io/badge/Como-jogar-176B75?style=flat-square"></a>
   <a href="prototipo_pedal/firmware/recode_pedal/recode_pedal.ino"><img alt="Código do firmware" src="https://img.shields.io/badge/C%C3%B3digo-firmware-176B75?style=flat-square"></a>
-  <a href="docs/ReCode_Apresentacao_Academica.pptx"><img alt="Apresentação do projeto" src="https://img.shields.io/badge/Ver-apresenta%C3%A7%C3%A3o-176B75?style=flat-square"></a>
+  <a href="docs/ReCode_Apresentacao_Academica_V2.pptx"><img alt="Apresentação do projeto" src="https://img.shields.io/badge/Ver-apresenta%C3%A7%C3%A3o-176B75?style=flat-square"></a>
   <a href="ENTREGA.md"><img alt="Entrega final" src="https://img.shields.io/badge/Ver-entrega-176B75?style=flat-square"></a>
 </p>
 
@@ -125,7 +125,7 @@ Entre as classes principais, `CampaignGame` coordena menu e transições, `Campa
 
 ## 📄 Documentação e entrega
 
-- [Apresentação para o professor em 10 slides](docs/ReCode_Apresentacao_Academica.pptx)
+- [Apresentação para o professor em 11 slides](docs/ReCode_Apresentacao_Academica_V2.pptx)
 - [Short paper com registros das fases e do Kanban](docs/shortpaper_V2.docx)
 - [Relatório final](docs/Relatorio_Final_ReCode.docx)
 - [Game Design Document](docs/ReCode_GDD.docx)
