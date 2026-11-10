@@ -1,6 +1,6 @@
 # ReCode: jogo com giros do antebraço
 
-O ReCode reúne **Circuitos Básicos**, **Rede Instável** e **Sistema Central** em uma campanha libGDX. Um MPU6050 preso ao antebraço informa ao ESP32 os giros detectados. O jogo usa a sequência e o intervalo entre giros para mover ELO, restaurar a rede e carregar o escudo do mascote. Fase, integridade e desempenho continuam entre as três áreas.
+O ReCode reúne **Circuitos Básicos**, **Rede Instável** e **Sistema Central** em uma campanha libGDX. Um MPU6050 preso ao antebraço informa ao ESP32 os giros detectados. O jogo usa a sequência e o intervalo entre giros para mover ELO, restaurar a rede e carregar o escudo do mascote. Fase e desempenho continuam entre as áreas; ao entrar na fase 3, os três corações são restaurados.
 
 Os números de giros e ângulos abaixo são regras do jogo configuráveis. Não são metas de exercício ou prescrição de reabilitação. A montagem, o conforto e a calibração precisam ser conferidos com o dispositivo real antes de usar o controle com uma pessoa.
 
@@ -38,6 +38,8 @@ O firmware também envia `angleDeg` (inclinação relativa ao centro), `accelG` 
 As referências de registradores e alimentação são o [mapa de registradores do MPU6050](https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Register-Map1.pdf) e a [especificação do fabricante](https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Datasheet.pdf).
 
 ## Jogar
+
+Na entrega em ZIP para Windows, abra a pasta `Executaveis/ReCode` e escolha `ReCode-ESP32.exe` para jogar com o sensor ou `ReCode-Teclado.exe` para jogar sem ele. Mantenha as pastas `app` e `runtime` junto dos executáveis. O modo ESP32 identifica automaticamente a porta USB da placa; feche o Monitor Serial da Arduino IDE antes de abrir o jogo. As instruções completas estão em [ENTREGA.md](../ENTREGA.md).
 
 O desktop usa JDK 17, libGDX 1.14.2 e jSerialComm 2.11.4. Na pasta `desktop/`, execute:
 
