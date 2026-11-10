@@ -3,6 +3,7 @@ package br.edu.recode;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
 import com.badlogic.gdx.ApplicationAdapter;
+import com.fazecast.jSerialComm.SerialPort;
 
 public final class DesktopLauncher {
     private DesktopLauncher() { }
@@ -10,6 +11,12 @@ public final class DesktopLauncher {
     public static void main(String[] args) {
         String port = System.getProperty("recode.port", "").trim();
         boolean keyboard = Boolean.parseBoolean(System.getProperty("recode.keyboard", "false"));
+        for (String argument : args) {
+            if ("--keyboard".equals(argument)) keyboard = true;
+            else if ("--sensor".equals(argument)) keyboard = false;
+            else if (argument.startsWith("--port=")) port = argument.substring(7).trim();
+        }
+        if (!keyboard && port.isEmpty()) port = detectEsp32Port();
         boolean simulated = keyboard || Boolean.parseBoolean(System.getProperty("recode.simulate", "false"));
         String phase = System.getProperty("recode.phase", "campaign").trim();
         String preview = System.getProperty("recode.preview", "").trim().toLowerCase();
@@ -46,5 +53,22 @@ public final class DesktopLauncher {
             throw new IllegalArgumentException("Use -Ppreview=rede ou -Ppreview=central");
         }
         new Lwjgl3Application(game, config);
+    }
+
+    private static String detectEsp32Port() {
+        String candidate = "";
+        int candidates = 0;
+        for (SerialPort serial : SerialPort.getCommPorts()) {
+            String description = (serial.getDescriptivePortName() + " " +
+                    serial.getPortDescription()).toLowerCase();
+            if (description.contains("bluetooth") || description.contains("bthenum"))
+                continue;
+            if (description.contains("ch910") || description.contains("usb-serial") ||
+                    description.contains("usb serial") || description.contains("usb-enhanced"))
+                return serial.getSystemPortName();
+            candidate = serial.getSystemPortName();
+            candidates++;
+        }
+        return candidates == 1 ? candidate : "";
     }
 }

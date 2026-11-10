@@ -19,7 +19,7 @@ final class SerialPedalSource implements PedalSource {
     @Override public void start() {
         if (running) return;
         if (portName.isEmpty()) {
-            error = "Informe a porta serial com -Pport=COM3";
+            error = "ESP32 nao detectado: conecte por USB e feche o Monitor Serial";
             return;
         }
         running = true;
