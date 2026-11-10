@@ -18,7 +18,7 @@ No menu, use as setas e `Enter`. `Espaço`, `P` ou `Esc` abre a pausa; nela é p
 
 - `Executaveis/ReCode`: dois executáveis Windows, dependências e ambiente Java integrado.
 - `Projeto`: código fonte do jogo, recursos, firmware e documentação.
-- `Documentos`: atalhos para os arquivos Word principais, incluindo short paper, relatório final, GDD, personagens e montagem IoT.
+- `Documentos`: arquivos Word principais, incluindo `shortpaper_V2.docx` com evidências do Kanban, imagens conceituais do controle e espaço para a foto real, além do relatório final, GDD, personagens e montagem IoT.
 
 O código fonte e a documentação também estão no [repositório do ReCode](https://github.com/Pinkpie186/recode-iot-libgdx). O firmware utilizado está em `Projeto/prototipo_pedal/firmware/recode_pedal/recode_pedal.ino`.
 

@@ -15,6 +15,7 @@ O menu inicia ou continua a campanha. Cada fase apresenta seu objetivo antes de 
 ## Projeto
 
 - [Game Design Document](docs/ReCode_GDD.docx)
+- [Short paper final com evidências do Kanban](docs/shortpaper_V2.docx)
 - [Planejamento e cartões do Kanban](planning/)
 - [Jogo, firmware e recursos visuais](prototipo_pedal/)
 
